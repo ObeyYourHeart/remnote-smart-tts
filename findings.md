@@ -20,3 +20,4 @@
 
 - GitHub 连接身份：`ObeyYourHeart`。
 - GitHub 连接器目前没有已安装仓库账户，并且不提供创建 repository 的动作；需要先建立一个公开空仓库或向连接器授予仓库访问权限。
+- RemNote 官方维护公开的 React plugin template 和 official plugins 仓库。上传页要求 public GitHub Repo URL 是开发/安装来源验证，不等于插件已进入官方商店或已经过官方审核。
