@@ -1,0 +1,22 @@
+{
+  "manifestVersion": 1,
+  "id": "card-speech-studio",
+  "name": "Card Speech Studio",
+  "author": "LeeSin",
+  "repoUrl": "https://github.com/leesin/card-speech-studio",
+  "version": {
+    "major": 0,
+    "minor": 1,
+    "patch": 0
+  },
+  "theme": [],
+  "enableOnMobile": false,
+  "description": "Smart Chinese, English, and Japanese flashcard speech with Cloze-aware prompts and optional Azure neural voices.",
+  "requestNative": false,
+  "requiredScopes": [
+    {
+      "type": "All",
+      "level": "Read"
+    }
+  ]
+}
