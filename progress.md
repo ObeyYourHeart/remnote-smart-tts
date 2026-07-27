@@ -8,3 +8,4 @@
 - 2026-07-27：GitHub 连接识别用户 `ObeyYourHeart`，但尚无可访问仓库。
 - 2026-07-27：完成 0.2 TTS 互斥锁、10 项测试、官方构建和密钥扫描；等待公开仓库创建后推送。
 - 2026-07-27：公开仓库 `ObeyYourHeart/card-speech-studio` 创建完成，本地 `main` 已成功推送。
+- 2026-07-27：创建 GitHub Release `v0.2.0`，上传正式构建 `PluginZip.zip` 供 RemNote 安装。
