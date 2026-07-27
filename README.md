@@ -1,4 +1,4 @@
-# Card Speech Studio
+# Smart Flashcard TTS
 
 [English](#english) · [简体中文](#简体中文)
 
@@ -10,7 +10,7 @@
 
 ### Overview
 
-Card Speech Studio is a multilingual text-to-speech plugin for the RemNote review queue. It understands flashcard direction and active text Clozes, detects Chinese, English, and Japanese independently on each card side, and supports both browser voices and Microsoft Azure Neural Voices.
+Smart Flashcard TTS provides complete, structure-aware card reading for the RemNote review queue. It understands flashcard direction and active text Clozes, detects Chinese, English, and Japanese independently on each card side, and supports both browser voices and Microsoft Azure Neural Voices.
 
 ### Highlights
 
@@ -50,10 +50,10 @@ Recommended defaults:
 
 ### Preventing conflicts with RemNote TTS
 
-RemNote provides its own Queue Text to Speech and table-column TTS. The Plugin SDK does not currently expose a supported way to read or disable those settings, so Card Speech Studio uses an explicit safety interlock:
+RemNote provides its own Queue Text to Speech and table-column TTS. The Plugin SDK does not currently expose a supported way to read or disable those settings, so Smart Flashcard TTS uses an explicit safety interlock:
 
 1. Disable RemNote autoplay in **Settings → Queue → Text to Speech**.
-2. In Card Speech Studio, confirm **I have disabled RemNote's built-in autoplay TTS**.
+2. In Smart Flashcard TTS, confirm **I have disabled RemNote's built-in autoplay TTS**.
 3. Enable question-side and/or answer-side autoplay.
 
 Autoplay is locked off for new installations and upgrades from 0.1 until this confirmation is made. Manual replay remains available. The plugin does not forcibly stop RemNote audio or media embedded in cards.
@@ -87,7 +87,7 @@ The production package is generated as `PluginZip.zip`.
 
 ### 项目简介
 
-Card Speech Studio 是面向 RemNote 复习队列的多语言朗读插件。它能够理解卡片方向与当前文字 Cloze，分别判断问题面和答案面的中文、英文或日文，并使用浏览器声音或 Microsoft Azure Neural Voice 朗读。
+Smart Flashcard TTS（智能卡片朗读）为 RemNote 复习队列提供完整、能够理解卡片结构的朗读。它能够识别卡片方向与当前文字 Cloze，分别判断问题面和答案面的中文、英文或日文，并使用浏览器声音或 Microsoft Azure Neural Voice 朗读。
 
 ### 核心功能
 
@@ -130,7 +130,7 @@ Azure 模式需要你自己的 Azure Speech resource、Speech Key、Region 和�
 RemNote 自带 Queue Text to Speech，表格列也可以启用 TTS。Plugin SDK 目前没有提供读取或关闭这些设置的可靠接口，因此插件使用显式安全锁：
 
 1. 在 **Settings → Queue → Text to Speech** 中关闭 RemNote 官方自动播放。
-2. 在 Card Speech Studio 中确认 **我已关闭 RemNote 官方自动 TTS**。
+2. 在 Smart Flashcard TTS 中确认 **我已关闭 RemNote 官方自动 TTS**。
 3. 再开启问题面和/或答案面自动朗读。
 
 新安装或从 0.1 升级时，自动朗读默认保持锁定；手动重播始终可用。插件不会强行停止 RemNote 音频或卡片中插入的媒体。

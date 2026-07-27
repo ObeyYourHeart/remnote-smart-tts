@@ -80,7 +80,7 @@ export async function readSettings(plugin: RNPlugin): Promise<SpeechSettings> {
     const saved = await plugin.storage.getSynced<Partial<SpeechSettings>>(SETTINGS_STORAGE_KEY);
     return normalizeSettings(saved);
   } catch (error) {
-    console.error('Card Speech Studio could not read settings.', error);
+    console.error('Smart Flashcard TTS could not read settings.', error);
     return DEFAULT_SETTINGS;
   }
 }
@@ -93,7 +93,7 @@ export async function readAzureKey(plugin: RNPlugin): Promise<string> {
   try {
     return (await plugin.storage.getLocal<string>(AZURE_KEY_STORAGE_KEY))?.trim() ?? '';
   } catch (error) {
-    console.error('Card Speech Studio could not read the local Azure key.', error);
+    console.error('Smart Flashcard TTS could not read the local Azure key.', error);
     return '';
   }
 }

@@ -1,17 +1,17 @@
 {
   "manifestVersion": 1,
   "id": "card-speech-studio",
-  "name": "Card Speech Studio",
+  "name": "Smart Flashcard TTS",
   "author": "LeeSin",
   "repoUrl": "https://github.com/ObeyYourHeart/card-speech-studio",
   "version": {
     "major": 0,
     "minor": 2,
-    "patch": 0
+    "patch": 1
   },
   "theme": [],
   "enableOnMobile": false,
-  "description": "Smart Chinese, English, and Japanese flashcard speech with Cloze-aware prompts and optional Azure neural voices.",
+  "description": "Complete, structure-aware flashcard reading with Cloze prompts, multilingual voices, and optional Azure Neural TTS.",
   "requestNative": false,
   "requiredScopes": [
     {

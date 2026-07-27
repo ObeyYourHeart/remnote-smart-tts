@@ -49,7 +49,7 @@ export async function richTextToPieces(
           pieces.push(...(await richTextToPieces(plugin, item.textOfDeletedRem as RichTextInterface, nextVisited)));
         }
       } catch (error) {
-        console.warn('Card Speech Studio skipped an unreadable Rem reference.', error);
+        console.warn('Smart Flashcard TTS skipped an unreadable Rem reference.', error);
       }
       continue;
     }

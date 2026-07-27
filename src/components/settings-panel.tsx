@@ -90,9 +90,9 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
     setSaving(true);
     try {
       await Promise.all([writeSettings(plugin, settings), writeAzureKey(plugin, azureKey)]);
-      await plugin.app.toast('Card Speech Studio 设置已保存。');
+      await plugin.app.toast('Smart Flashcard TTS 设置已保存。');
     } catch (error) {
-      console.error('Card Speech Studio could not save settings.', error);
+      console.error('Smart Flashcard TTS could not save settings.', error);
       await plugin.app.toast('设置保存失败，请稍后重试。');
     } finally {
       setSaving(false);
@@ -109,7 +109,7 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
       );
       if (result.fallbackReason) await plugin.app.toast('Azure 不可用，本次试听使用了浏览器声音。');
     } catch (error) {
-      console.error('Card Speech Studio voice test failed.', error);
+      console.error('Smart Flashcard TTS voice test failed.', error);
       await plugin.app.toast('试听失败，请检查声音、Azure Key 和 Region。');
     } finally {
       setTestingLanguage(null);

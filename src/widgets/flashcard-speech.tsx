@@ -53,7 +53,7 @@ function FlashcardSpeechWidget() {
         setStatus('idle');
         setMessage(nextPlan ? '准备就绪' : '当前卡片结构暂未支持');
       } catch (error) {
-        console.error('Card Speech Studio could not inspect the current card.', error);
+        console.error('Smart Flashcard TTS could not inspect the current card.', error);
         setStatus('error');
         setMessage('无法读取当前卡片');
       }
@@ -76,7 +76,7 @@ function FlashcardSpeechWidget() {
       setStatus('idle');
       setMessage('准备就绪');
     } catch (error) {
-      console.error('Card Speech Studio playback failed.', error);
+      console.error('Smart Flashcard TTS playback failed.', error);
       setStatus('error');
       setMessage('播放失败，点重播再试');
       await plugin.app.toast('朗读失败。如果 Chrome 阻止自动播放，请点击卡片下方的重播按钮。');

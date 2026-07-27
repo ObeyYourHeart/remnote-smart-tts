@@ -13,7 +13,7 @@ async function onActivate(plugin: ReactRNPlugin) {
 
   await plugin.app.registerCommand({
     id: 'card-speech-open-settings',
-    name: 'Card Speech Studio · 打开设置',
+    name: 'Smart Flashcard TTS · 打开设置',
     description: '设置中文、英文、日语声音与 Azure Xiaoxiao',
     action: async () => plugin.widget.openPopup('settings'),
   });
