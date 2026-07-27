@@ -6,8 +6,9 @@ export const AZURE_KEY_STORAGE_KEY = 'card-speech-azure-key-v1';
 
 export const DEFAULT_SETTINGS: SpeechSettings = {
   enabled: true,
-  autoReadQuestion: true,
-  autoReadAnswer: true,
+  officialTtsDisabledConfirmed: false,
+  autoReadQuestion: false,
+  autoReadAnswer: false,
   provider: 'browser',
   fallbackToBrowser: true,
   defaultLanguage: 'zh',
@@ -46,12 +47,17 @@ export function normalizeSettings(saved?: Partial<SpeechSettings> | null): Speec
   const defaultLanguage = LANGUAGES.includes(saved?.defaultLanguage as SupportedLanguage)
     ? (saved?.defaultLanguage as SupportedLanguage)
     : DEFAULT_SETTINGS.defaultLanguage;
+  const officialTtsDisabledConfirmed = saved?.officialTtsDisabledConfirmed === true;
 
   return {
     ...DEFAULT_SETTINGS,
     ...saved,
     provider,
     defaultLanguage,
+    officialTtsDisabledConfirmed,
+    // Autoplay stays locked until the user confirms RemNote's own autoplay TTS is off.
+    autoReadQuestion: officialTtsDisabledConfirmed && saved?.autoReadQuestion === true,
+    autoReadAnswer: officialTtsDisabledConfirmed && saved?.autoReadAnswer === true,
     rate: clamp(saved?.rate, 0.5, 2, DEFAULT_SETTINGS.rate),
     volume: clamp(saved?.volume, 0, 1, DEFAULT_SETTINGS.volume),
     browserVoices: {

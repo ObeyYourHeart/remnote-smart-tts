@@ -3,10 +3,10 @@
   "id": "card-speech-studio",
   "name": "Card Speech Studio",
   "author": "LeeSin",
-  "repoUrl": "https://github.com/leesin/card-speech-studio",
+  "repoUrl": "https://github.com/ObeyYourHeart/card-speech-studio",
   "version": {
     "major": 0,
-    "minor": 1,
+    "minor": 2,
     "patch": 0
   },
   "theme": [],

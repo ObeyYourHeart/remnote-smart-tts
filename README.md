@@ -11,6 +11,7 @@
 - Chrome 中可通过 Azure 使用 `zh-CN-XiaoxiaoNeural`。
 - Azure Speech Key 只保存在本机 RemNote storage，不参与同步。
 - Azure 不可用时可自动退回浏览器声音。
+- 内置官方 TTS 互斥锁，避免 RemNote 与插件同时自动朗读。
 
 ## 安装
 
@@ -41,9 +42,19 @@ npm run build
 - 英文：`en-US-JennyNeural`
 - 日文：`ja-JP-NanamiNeural`
 
+## 避免与 RemNote 官方朗读冲突
+
+RemNote 自带 Queue Text to Speech，Advanced Tables 也可以为列开启 TTS。RemNote Plugin SDK 暂未提供读取或关闭官方 TTS 的接口，因此本插件采用显式安全锁：
+
+1. 在 RemNote Settings → Queue → Text to Speech 中关闭官方自动播放。
+2. 在 Card Speech Studio 中勾选“我已关闭 RemNote 官方自动 TTS”。
+3. 然后再开启问题面或答案面自动朗读。
+
+新安装和从 0.1 升级时，自动朗读默认锁定为关闭；手动“重播”始终可用。本插件不会强行停止 RemNote 或卡片中的其他音频。
+
 ## 当前边界
 
-0.1 版重点支持普通正反向卡和文字 Cloze。逐行揭晓、多选项随机顺序、表格、图片遮挡和 LaTeX Cloze 需要不同的朗读规则，暂未自动处理。
+0.2 版重点支持普通正反向卡和文字 Cloze，并加入官方 TTS 互斥保护。逐行揭晓、多选项随机顺序、表格、图片遮挡和 LaTeX Cloze 需要不同的朗读规则，暂未自动处理。
 
 ## 隐私
 

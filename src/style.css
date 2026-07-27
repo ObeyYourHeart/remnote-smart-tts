@@ -553,6 +553,32 @@ button {
   gap: 10px 16px;
 }
 
+.tts-conflict-guard {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  color: #6f3b25;
+  background: #fff3e7;
+  border: 1px solid rgba(189, 83, 38, 0.28);
+  border-left: 4px solid var(--studio-vermilion);
+  border-radius: 9px;
+}
+
+.tts-conflict-guard[data-confirmed='true'] {
+  color: var(--studio-green);
+  background: #edf6f1;
+  border-color: rgba(29, 96, 77, 0.25);
+  border-left-color: var(--studio-green);
+}
+
+.tts-conflict-guard strong { font-size: 11px; }
+.tts-conflict-guard p { margin: 3px 0 0; font-size: 9px; line-height: 1.5; }
+.studio-check input:disabled { cursor: not-allowed; opacity: 0.45; }
+.studio-check--large:has(input:disabled) { cursor: not-allowed; opacity: 0.58; }
+
 .studio-check {
   display: flex;
   align-items: center;

@@ -10,6 +10,7 @@ export interface LanguageVoiceMap {
 
 export interface SpeechSettings {
   enabled: boolean;
+  officialTtsDisabledConfirmed: boolean;
   autoReadQuestion: boolean;
   autoReadAnswer: boolean;
   provider: SpeechProvider;

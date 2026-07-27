@@ -127,7 +127,7 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
           <i />
         </div>
         <div>
-          <p className="studio-kicker">CARD SPEECH STUDIO · 0.1</p>
+          <p className="studio-kicker">CARD SPEECH STUDIO · 0.2</p>
           <h1>让每张卡片，开口说对语言。</h1>
           <p>中文、English、日本語独立选声；Chrome 也能通过 Azure 使用高质量晓晓。</p>
         </div>
@@ -297,11 +297,38 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
           </div>
         </div>
 
+        <div className="tts-conflict-guard" data-confirmed={settings.officialTtsDisabledConfirmed}>
+          <div>
+            <strong>避免两套声音同时播放</strong>
+            <p>
+              请先在 RemNote Settings → Queue → Text to Speech 中关闭官方自动播放。
+              插件无法安全读取或替你修改这个 RemNote 设置。
+            </p>
+          </div>
+          <label className="studio-check">
+            <input
+              type="checkbox"
+              checked={settings.officialTtsDisabledConfirmed}
+              onChange={(event) => {
+                const confirmed = event.target.checked;
+                setSettings({
+                  ...settings,
+                  officialTtsDisabledConfirmed: confirmed,
+                  autoReadQuestion: confirmed ? settings.autoReadQuestion : false,
+                  autoReadAnswer: confirmed ? settings.autoReadAnswer : false,
+                });
+              }}
+            />
+            我已关闭 RemNote 官方自动 TTS
+          </label>
+        </div>
+
         <div className="behavior-grid">
           <label className="studio-check studio-check--large">
             <input
               type="checkbox"
               checked={settings.autoReadQuestion}
+              disabled={!settings.officialTtsDisabledConfirmed}
               onChange={(event) => setSettings({ ...settings, autoReadQuestion: event.target.checked })}
             />
             <span><b>问题面自动朗读</b><small>新卡片出现时开始</small></span>
@@ -310,6 +337,7 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
             <input
               type="checkbox"
               checked={settings.autoReadAnswer}
+              disabled={!settings.officialTtsDisabledConfirmed}
               onChange={(event) => setSettings({ ...settings, autoReadAnswer: event.target.checked })}
             />
             <span><b>答案面自动朗读</b><small>翻面后开始</small></span>
