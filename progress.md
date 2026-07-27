@@ -7,3 +7,4 @@
 - 2026-07-27：确认官方 Queue/Table TTS 可能与插件同时播放；SDK 无法读取或关闭官方 TTS，决定使用默认关闭 autoplay 与明确互斥提示。
 - 2026-07-27：GitHub 连接识别用户 `ObeyYourHeart`，但尚无可访问仓库。
 - 2026-07-27：完成 0.2 TTS 互斥锁、10 项测试、官方构建和密钥扫描；等待公开仓库创建后推送。
+- 2026-07-27：公开仓库 `ObeyYourHeart/card-speech-studio` 创建完成，本地 `main` 已成功推送。
