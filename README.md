@@ -2,7 +2,7 @@
 
 [English](#english) · [简体中文](#简体中文)
 
-[![Release](https://img.shields.io/github/v/release/ObeyYourHeart/card-speech-studio)](https://github.com/ObeyYourHeart/card-speech-studio/releases/latest)
+[![Release](https://img.shields.io/github/v/release/ObeyYourHeart/smart-flashcard-tts)](https://github.com/ObeyYourHeart/smart-flashcard-tts/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-1f604d.svg)](LICENSE)
 [![RemNote Plugin](https://img.shields.io/badge/RemNote-Plugin-9b51e0.svg)](https://www.remnote.com/)
 
@@ -27,8 +27,8 @@ Smart Flashcard TTS provides complete, structure-aware card reading for the RemN
 
 Install from the RemNote Plugin Store after approval, or use the latest release package:
 
-- [Download PluginZip.zip](https://github.com/ObeyYourHeart/card-speech-studio/releases/latest/download/PluginZip.zip)
-- [View all releases](https://github.com/ObeyYourHeart/card-speech-studio/releases)
+- [Download PluginZip.zip](https://github.com/ObeyYourHeart/smart-flashcard-tts/releases/latest/download/PluginZip.zip)
+- [View all releases](https://github.com/ObeyYourHeart/smart-flashcard-tts/releases)
 
 ### Voice providers
 
@@ -104,8 +104,8 @@ Smart Flashcard TTS（智能卡片朗读）为 RemNote 复习队列提供完整�
 
 审核通过后可从 RemNote 插件商店安装，也可以使用最新版安装包：
 
-- [下载 PluginZip.zip](https://github.com/ObeyYourHeart/card-speech-studio/releases/latest/download/PluginZip.zip)
-- [查看全部版本](https://github.com/ObeyYourHeart/card-speech-studio/releases)
+- [下载 PluginZip.zip](https://github.com/ObeyYourHeart/smart-flashcard-tts/releases/latest/download/PluginZip.zip)
+- [查看全部版本](https://github.com/ObeyYourHeart/smart-flashcard-tts/releases)
 
 ### 声音来源
 

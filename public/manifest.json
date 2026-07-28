@@ -3,11 +3,11 @@
   "id": "card-speech-studio",
   "name": "Smart Flashcard TTS",
   "author": "LeeSin",
-  "repoUrl": "https://github.com/ObeyYourHeart/card-speech-studio",
+  "repoUrl": "https://github.com/ObeyYourHeart/smart-flashcard-tts",
   "version": {
     "major": 0,
     "minor": 2,
-    "patch": 1
+    "patch": 2
   },
   "theme": [],
   "enableOnMobile": false,
