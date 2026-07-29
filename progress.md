@@ -10,3 +10,4 @@
 - 2026-07-27：公开仓库 `ObeyYourHeart/card-speech-studio` 创建完成，本地 `main` 已成功推送。
 - 2026-07-27：创建 GitHub Release `v0.2.0`，上传正式构建 `PluginZip.zip` 供 RemNote 安装。
 - 2026-07-28：插件与仓库正式改名为 `Smart Flashcard TTS` / `ObeyYourHeart/smart-flashcard-tts`；内部插件 ID 保持不变以兼容升级。
+- 2026-07-29：v0.3 将日常选项迁移到 RemNote 原生插件设置，重做中英双语高级声音页与极简卡片控件，并修复生产包未加载 widget CSS 的问题。

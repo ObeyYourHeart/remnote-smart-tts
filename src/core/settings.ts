@@ -1,10 +1,12 @@
 import type { RNPlugin } from '@remnote/plugin-sdk';
 import type { SpeechSettings, SupportedLanguage } from './types';
+import { readNativeSettings } from './nativeSettings';
 
 export const SETTINGS_STORAGE_KEY = 'card-speech-settings-v1';
 export const AZURE_KEY_STORAGE_KEY = 'card-speech-azure-key-v1';
 
 export const DEFAULT_SETTINGS: SpeechSettings = {
+  uiLanguage: 'en',
   enabled: true,
   officialTtsDisabledConfirmed: false,
   autoReadQuestion: false,
@@ -43,6 +45,7 @@ function clamp(value: unknown, minimum: number, maximum: number, fallback: numbe
  * Normalizes saved settings so an older or partially corrupted value cannot break speech.
  */
 export function normalizeSettings(saved?: Partial<SpeechSettings> | null): SpeechSettings {
+  const uiLanguage = saved?.uiLanguage === 'zh' ? 'zh' : 'en';
   const provider = saved?.provider === 'azure' ? 'azure' : 'browser';
   const defaultLanguage = LANGUAGES.includes(saved?.defaultLanguage as SupportedLanguage)
     ? (saved?.defaultLanguage as SupportedLanguage)
@@ -52,6 +55,7 @@ export function normalizeSettings(saved?: Partial<SpeechSettings> | null): Speec
   return {
     ...DEFAULT_SETTINGS,
     ...saved,
+    uiLanguage,
     provider,
     defaultLanguage,
     officialTtsDisabledConfirmed,
@@ -77,8 +81,11 @@ export function normalizeSettings(saved?: Partial<SpeechSettings> | null): Speec
 
 export async function readSettings(plugin: RNPlugin): Promise<SpeechSettings> {
   try {
-    const saved = await plugin.storage.getSynced<Partial<SpeechSettings>>(SETTINGS_STORAGE_KEY);
-    return normalizeSettings(saved);
+    const [saved, nativeSettings] = await Promise.all([
+      plugin.storage.getSynced<Partial<SpeechSettings>>(SETTINGS_STORAGE_KEY),
+      readNativeSettings(plugin),
+    ]);
+    return normalizeSettings({ ...saved, ...nativeSettings });
   } catch (error) {
     console.error('Smart Flashcard TTS could not read settings.', error);
     return DEFAULT_SETTINGS;

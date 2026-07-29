@@ -1,20 +1,24 @@
 import { declareIndexPlugin, type ReactRNPlugin, WidgetLocation } from '@remnote/plugin-sdk';
+import { registerNativeSettings } from '../core/nativeSettings';
 
 async function onActivate(plugin: ReactRNPlugin) {
-  // The popup keeps credentials and voice choices out of the flashcard UI.
+  // Everyday controls live in RemNote's own Settings > Plugins page.
+  await registerNativeSettings(plugin);
+
+  // This compact popup is only for local credentials, dynamic voices, and previews.
   await plugin.app.registerWidget('settings', WidgetLocation.Popup, {
-    dimensions: { width: 760, height: 680 },
+    dimensions: { width: 680, height: 590 },
   });
 
-  // A compact strip under the card owns autoplay, replay, and stop behavior.
+  // A minimal control under the card owns manual replay and stop behavior.
   await plugin.app.registerWidget('flashcard-speech', WidgetLocation.FlashcardUnder, {
     dimensions: { width: '100%', height: 'auto' },
   });
 
   await plugin.app.registerCommand({
     id: 'card-speech-open-settings',
-    name: 'Smart Flashcard TTS · 打开设置',
-    description: '设置中文、英文、日语声音与 Azure Xiaoxiao',
+    name: 'Smart Flashcard TTS · Advanced Voice Setup / 高级声音设置',
+    description: 'Configure local Azure credentials, choose voices, and preview Chinese, English, or Japanese speech.',
     action: async () => plugin.widget.openPopup('settings'),
   });
 }

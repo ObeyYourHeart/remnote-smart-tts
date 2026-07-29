@@ -30,6 +30,10 @@ Install from the RemNote Plugin Store after approval, or use the latest release 
 - [Download PluginZip.zip](https://github.com/ObeyYourHeart/smart-flashcard-tts/releases/latest/download/PluginZip.zip)
 - [View all releases](https://github.com/ObeyYourHeart/smart-flashcard-tts/releases)
 
+### Settings and card controls
+
+Everyday controls are integrated into **RemNote Settings → Plugins → Smart Flashcard TTS** with English-first bilingual labels. This includes autoplay, Cloze prompts, provider, fallback language, rate, and volume. **Advanced Voice Setup** is reserved for local Azure credentials, dynamic browser voice selection, and voice previews. The flashcard UI stays intentionally minimal: one play/stop button and one advanced-setup button.
+
 ### Voice providers
 
 #### Browser voices
@@ -53,7 +57,7 @@ Recommended defaults:
 RemNote provides its own Queue Text to Speech and table-column TTS. The Plugin SDK does not currently expose a supported way to read or disable those settings, so Smart Flashcard TTS uses an explicit safety interlock:
 
 1. Disable RemNote autoplay in **Settings → Queue → Text to Speech**.
-2. In Smart Flashcard TTS, confirm **I have disabled RemNote's built-in autoplay TTS**.
+2. In **Settings → Plugins → Smart Flashcard TTS**, confirm **I disabled RemNote's autoplay TTS**.
 3. Enable question-side and/or answer-side autoplay.
 
 Autoplay is locked off for new installations and upgrades from 0.1 until this confirmation is made. Manual replay remains available. The plugin does not forcibly stop RemNote audio or media embedded in cards.
@@ -68,7 +72,7 @@ Autoplay is locked off for new installations and upgrades from 0.1 until this co
 
 ### Current scope
 
-Version 0.2 focuses on standard forward/backward cards and text Clozes. Multi-line incremental reveal, randomized multiple-choice order, full table rendering, image occlusion descriptions, LaTeX Clozes, and mobile autoplay require separate handling and are not yet automated.
+Version 0.3 focuses on standard forward/backward cards and text Clozes. Multi-line incremental reveal, randomized multiple-choice order, full table rendering, image occlusion descriptions, LaTeX Clozes, and mobile autoplay require separate handling and are not yet automated.
 
 ### Development
 
@@ -107,6 +111,10 @@ Smart Flashcard TTS（智能卡片朗读）为 RemNote 复习队列提供完整�
 - [下载 PluginZip.zip](https://github.com/ObeyYourHeart/smart-flashcard-tts/releases/latest/download/PluginZip.zip)
 - [查看全部版本](https://github.com/ObeyYourHeart/smart-flashcard-tts/releases)
 
+### 设置与卡片控件
+
+日常选项已经集成到 **RemNote 设置 → 插件 → Smart Flashcard TTS**，采用英文优先的中英双语标签，包括自动朗读、Cloze 用词、声音来源、默认语言、语速与音量。**高级声音设置**只负责本机 Azure Key、动态浏览器声音选择和试听。卡片内默认只显示一个播放/停止按钮和一个高级声音设置按钮。
+
 ### 声音来源
 
 #### 浏览器声音
@@ -130,7 +138,7 @@ Azure 模式需要你自己的 Azure Speech resource、Speech Key、Region 和�
 RemNote 自带 Queue Text to Speech，表格列也可以启用 TTS。Plugin SDK 目前没有提供读取或关闭这些设置的可靠接口，因此插件使用显式安全锁：
 
 1. 在 **Settings → Queue → Text to Speech** 中关闭 RemNote 官方自动播放。
-2. 在 Smart Flashcard TTS 中确认 **我已关闭 RemNote 官方自动 TTS**。
+2. 在 **设置 → 插件 → Smart Flashcard TTS** 中确认 **我已关闭 RemNote 官方自动 TTS**。
 3. 再开启问题面和/或答案面自动朗读。
 
 新安装或从 0.1 升级时，自动朗读默认保持锁定；手动重播始终可用。插件不会强行停止 RemNote 音频或卡片中插入的媒体。
@@ -145,7 +153,7 @@ RemNote 自带 Queue Text to Speech，表格列也可以启用 TTS。Plugin SDK 
 
 ### 当前范围
 
-0.2 版重点支持普通正反向卡和文字 Cloze。逐行揭晓、多选项随机顺序、完整表格渲染、图片遮挡描述、LaTeX Cloze 和移动端自动播放仍需要单独适配。
+0.3 版重点支持普通正反向卡和文字 Cloze。逐行揭晓、多选项随机顺序、完整表格渲染、图片遮挡描述、LaTeX Cloze 和移动端自动播放仍需要单独适配。
 
 ### 本地开发
 

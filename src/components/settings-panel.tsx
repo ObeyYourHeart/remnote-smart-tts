@@ -1,49 +1,107 @@
 import type { RNPlugin } from '@remnote/plugin-sdk';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  DEFAULT_SETTINGS,
-  readAzureKey,
-  readSettings,
-  writeAzureKey,
-  writeSettings,
-} from '../core/settings';
+import { readAzureKey, readSettings, writeAzureKey, writeSettings } from '../core/settings';
 import { getAvailableBrowserVoices, SpeechController } from '../core/speech';
-import type { LanguageVoiceMap, SpeechSettings, SupportedLanguage } from '../core/types';
+import type { InterfaceLanguage, LanguageVoiceMap, SpeechSettings, SupportedLanguage } from '../core/types';
 import '../style.css';
 
-const LANGUAGE_META: Record<SupportedLanguage, { label: string; locale: string; sample: string }> = {
-  zh: { label: '中文', locale: 'zh-CN', sample: '你好，我是晓晓。今天也要认真复习。' },
-  en: { label: 'English', locale: 'en-US', sample: 'A clear voice makes every review easier.' },
-  ja: { label: '日本語', locale: 'ja-JP', sample: 'こんにちは。今日も日本語を勉強しましょう。' },
+const LANGUAGE_META: Record<SupportedLanguage, { english: string; native: string; locale: string; sample: string }> = {
+  zh: { english: 'Chinese', native: '中文', locale: 'zh-CN', sample: '你好，我是晓晓。今天也要认真复习。' },
+  en: { english: 'English', native: 'English', locale: 'en-US', sample: 'A clear voice makes every review easier.' },
+  ja: { english: 'Japanese', native: '日本語', locale: 'ja-JP', sample: 'こんにちは。今日も日本語を勉強しましょう。' },
 };
 
 const AZURE_VOICE_OPTIONS: Record<SupportedLanguage, Array<{ value: string; label: string }>> = {
   zh: [
-    { value: 'zh-CN-XiaoxiaoNeural', label: '晓晓 Neural · 稳定推荐' },
-    { value: 'zh-CN-XiaoxiaoMultilingualNeural', label: '晓晓 Multilingual · 多语' },
-    { value: 'zh-CN-Xiaoxiao:DragonHDFlashLatestNeural', label: '晓晓 Dragon HD · 区域可用性不同' },
-    { value: 'zh-CN-YunxiNeural', label: '云希 Neural · 男声' },
+    { value: 'zh-CN-XiaoxiaoNeural', label: 'Xiaoxiao Neural — Recommended' },
+    { value: 'zh-CN-XiaoxiaoMultilingualNeural', label: 'Xiaoxiao Multilingual' },
+    { value: 'zh-CN-Xiaoxiao:DragonHDFlashLatestNeural', label: 'Xiaoxiao Dragon HD' },
+    { value: 'zh-CN-YunxiNeural', label: 'Yunxi Neural — Male' },
   ],
   en: [
-    { value: 'en-US-JennyNeural', label: 'Jenny Neural · 推荐' },
+    { value: 'en-US-JennyNeural', label: 'Jenny Neural — Recommended' },
     { value: 'en-US-AriaNeural', label: 'Aria Neural' },
-    { value: 'en-US-GuyNeural', label: 'Guy Neural · 男声' },
-    { value: 'en-US-RyanMultilingualNeural', label: 'Ryan Multilingual · 多语男声' },
+    { value: 'en-US-GuyNeural', label: 'Guy Neural — Male' },
+    { value: 'en-US-RyanMultilingualNeural', label: 'Ryan Multilingual — Male' },
   ],
   ja: [
-    { value: 'ja-JP-NanamiNeural', label: '七海 Nanami · 推荐女声' },
-    { value: 'ja-JP-Nanami:DragonHDLatestNeural', label: '七海 Dragon HD · 区域可用性不同' },
-    { value: 'ja-JP-AoiNeural', label: '葵 Aoi · 女声' },
-    { value: 'ja-JP-ShioriNeural', label: '诗织 Shiori · 女声' },
-    { value: 'ja-JP-KeitaNeural', label: '圭太 Keita · 男声' },
-    { value: 'ja-JP-MasaruMultilingualNeural', label: '胜 Masaru · 多语男声' },
+    { value: 'ja-JP-NanamiNeural', label: 'Nanami Neural — Recommended' },
+    { value: 'ja-JP-Nanami:DragonHDLatestNeural', label: 'Nanami Dragon HD' },
+    { value: 'ja-JP-AoiNeural', label: 'Aoi Neural' },
+    { value: 'ja-JP-ShioriNeural', label: 'Shiori Neural' },
+    { value: 'ja-JP-KeitaNeural', label: 'Keita Neural — Male' },
+    { value: 'ja-JP-MasaruMultilingualNeural', label: 'Masaru Multilingual — Male' },
   ],
 };
 
+const COPY = {
+  en: {
+    eyebrow: 'SMART FLASHCARD TTS',
+    title: 'Advanced voice setup',
+    subtitle: 'Choose and test the voice used for each card language.',
+    nativeNoticeTitle: 'Everyday settings are now built into RemNote',
+    nativeNoticeBody: 'Open Settings → Plugins → Smart Flashcard TTS for autoplay, Cloze prompts, rate, volume, and provider.',
+    provider: 'Active provider',
+    browser: 'Browser voice',
+    azure: 'Azure Neural Voice',
+    credentials: 'Azure connection',
+    key: 'Speech key',
+    keyPlaceholder: 'Stored only on this device',
+    region: 'Region',
+    regionMissing: 'Set the region in RemNote plugin settings.',
+    privacy: 'Your key stays in local RemNote storage and is never synced.',
+    voices: 'Language voices',
+    voice: 'Voice',
+    automatic: 'Automatic — best available voice',
+    preview: 'Preview',
+    previewing: 'Playing…',
+    save: 'Save voice setup',
+    saving: 'Saving…',
+    saved: 'Voice setup saved.',
+    saveFailed: 'Could not save voice setup. Please try again.',
+    previewFailed: 'Voice preview failed. Check the selected voice, Azure key, and region.',
+    fallback: 'Azure was unavailable, so this preview used a browser voice.',
+    close: 'Close',
+  },
+  zh: {
+    eyebrow: '智能卡片朗读',
+    title: '高级声音设置',
+    subtitle: '为每种卡片语言选择并试听声音。',
+    nativeNoticeTitle: '日常设置现已集成到 RemNote',
+    nativeNoticeBody: '前往 设置 → 插件 → Smart Flashcard TTS 调整自动朗读、Cloze 用词、语速、音量和声音来源。',
+    provider: '当前声音来源',
+    browser: '浏览器声音',
+    azure: 'Azure Neural Voice',
+    credentials: 'Azure 连接',
+    key: 'Speech Key',
+    keyPlaceholder: '仅保存在这台设备上',
+    region: '区域',
+    regionMissing: '请在 RemNote 插件设置中填写 Region。',
+    privacy: 'Key 只保存在本机 RemNote storage，不会同步。',
+    voices: '语言声音',
+    voice: '声音',
+    automatic: '自动选择最佳可用声音',
+    preview: '试听',
+    previewing: '播放中…',
+    save: '保存声音设置',
+    saving: '保存中…',
+    saved: '声音设置已保存。',
+    saveFailed: '声音设置保存失败，请重试。',
+    previewFailed: '试听失败，请检查声音、Azure Key 和 Region。',
+    fallback: 'Azure 暂不可用，本次试听已改用浏览器声音。',
+    close: '关闭',
+  },
+} as const;
+
 const testController = new SpeechController();
 
+function WaveMark() {
+  return <span className="voice-setup__wave" aria-hidden="true"><i /><i /><i /><i /></span>;
+}
+
 export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
-  const [settings, setSettings] = useState<SpeechSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<SpeechSettings | null>(null);
+  const [displayLanguage, setDisplayLanguage] = useState<InterfaceLanguage>('en');
   const [azureKey, setAzureKey] = useState('');
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [saving, setSaving] = useState(false);
@@ -52,6 +110,7 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
   useEffect(() => {
     void Promise.all([readSettings(plugin), readAzureKey(plugin)]).then(([savedSettings, savedKey]) => {
       setSettings(savedSettings);
+      setDisplayLanguage(savedSettings.uiLanguage);
       setAzureKey(savedKey);
     });
 
@@ -75,12 +134,11 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
     return result;
   }, [voices]);
 
-  const updateVoiceMap = (
-    field: 'browserVoices' | 'azureVoices' | 'clozeWords',
-    language: SupportedLanguage,
-    value: string,
-  ) => {
-    setSettings((current) => ({
+  if (!settings) return <main className="voice-setup voice-setup--loading"><WaveMark /></main>;
+  const copy = COPY[displayLanguage];
+
+  const updateVoice = (field: 'browserVoices' | 'azureVoices', language: SupportedLanguage, value: string) => {
+    setSettings((current) => current && ({
       ...current,
       [field]: { ...current[field], [language]: value } as LanguageVoiceMap,
     }));
@@ -90,10 +148,10 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
     setSaving(true);
     try {
       await Promise.all([writeSettings(plugin, settings), writeAzureKey(plugin, azureKey)]);
-      await plugin.app.toast('Smart Flashcard TTS 设置已保存。');
+      await plugin.app.toast(copy.saved);
     } catch (error) {
-      console.error('Smart Flashcard TTS could not save settings.', error);
-      await plugin.app.toast('设置保存失败，请稍后重试。');
+      console.error('Smart Flashcard TTS could not save advanced voice settings.', error);
+      await plugin.app.toast(copy.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -107,274 +165,95 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
         settings,
         azureKey,
       );
-      if (result.fallbackReason) await plugin.app.toast('Azure 不可用，本次试听使用了浏览器声音。');
+      if (result.fallbackReason) await plugin.app.toast(copy.fallback);
     } catch (error) {
-      console.error('Smart Flashcard TTS voice test failed.', error);
-      await plugin.app.toast('试听失败，请检查声音、Azure Key 和 Region。');
+      console.error('Smart Flashcard TTS voice preview failed.', error);
+      await plugin.app.toast(copy.previewFailed);
     } finally {
       setTestingLanguage(null);
     }
   };
 
   return (
-    <main className="studio-settings">
-      <header className="studio-hero">
-        <div className="studio-hero__mark" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
+    <main className="voice-setup" lang={displayLanguage === 'zh' ? 'zh-CN' : 'en'}>
+      <header className="voice-setup__header">
+        <div className="voice-setup__identity">
+          <WaveMark />
+          <div>
+            <p>{copy.eyebrow}</p>
+            <h1>{copy.title}</h1>
+            <span>{copy.subtitle}</span>
+          </div>
         </div>
-        <div>
-          <p className="studio-kicker">CARD SPEECH STUDIO · 0.2</p>
-          <h1>让每张卡片，开口说对语言。</h1>
-          <p>中文、English、日本語独立选声；Chrome 也能通过 Azure 使用高质量晓晓。</p>
+        <div className="voice-setup__header-actions">
+          <div className="language-toggle" aria-label="Interface language">
+            <button type="button" className={displayLanguage === 'en' ? 'is-active' : ''} onClick={() => setDisplayLanguage('en')}>EN</button>
+            <button type="button" className={displayLanguage === 'zh' ? 'is-active' : ''} onClick={() => setDisplayLanguage('zh')}>中文</button>
+          </div>
+          <button className="icon-button" type="button" onClick={() => void plugin.widget.closePopup()} aria-label={copy.close} title={copy.close}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
         </div>
-        <button className="studio-close" type="button" onClick={() => plugin.widget.closePopup()} aria-label="关闭">
-          ×
-        </button>
       </header>
 
-      <section className="studio-section studio-section--provider">
-        <div className="studio-section__heading">
-          <div>
-            <span>01</span>
-            <h2>声音来源</h2>
-          </div>
-          <label className="studio-switch">
-            <input
-              type="checkbox"
-              checked={settings.enabled}
-              onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })}
-            />
-            <span />
-            启用插件
-          </label>
-        </div>
+      <section className="native-settings-notice">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" /><circle cx="12" cy="12" r="4" /></svg>
+        <div><strong>{copy.nativeNoticeTitle}</strong><p>{copy.nativeNoticeBody}</p></div>
+      </section>
 
-        <div className="provider-grid">
-          <button
-            type="button"
-            className={settings.provider === 'browser' ? 'provider-card is-active' : 'provider-card'}
-            onClick={() => setSettings({ ...settings, provider: 'browser' })}
-          >
-            <b>本机声音</b>
-            <small>免费 · Chrome/Windows 已暴露的 voice</small>
-            <em>LOCAL</em>
-          </button>
-          <button
-            type="button"
-            className={settings.provider === 'azure' ? 'provider-card is-active' : 'provider-card'}
-            onClick={() => setSettings({ ...settings, provider: 'azure' })}
-          >
-            <b>Azure Neural</b>
-            <small>晓晓、Nanami 等高质量在线语音</small>
-            <em>PREMIUM</em>
-          </button>
-        </div>
-
-        <div className="studio-note">
-          <strong>为什么 Chrome 里找不到 Edge 的晓晓？</strong>
-          Edge Online Natural voices 通常不会通过 Chrome 的 Web Speech API 暴露。Azure 模式使用微软官方 Speech 服务，效果稳定，但需要你自己的 Key，并可能产生 Azure 费用。
+      <section className="voice-setup__section voice-setup__section--provider">
+        <div className="section-title"><span>01</span><h2>{copy.provider}</h2></div>
+        <div className="provider-summary">
+          <div className="provider-summary__icon"><WaveMark /></div>
+          <div><strong>{settings.provider === 'azure' ? copy.azure : copy.browser}</strong><small>{settings.provider === 'azure' ? 'Microsoft Cognitive Services' : 'Web Speech API'}</small></div>
+          <span className="status-chip">{settings.provider === 'azure' ? 'AZURE' : 'LOCAL'}</span>
         </div>
 
         {settings.provider === 'azure' && (
-          <div className="azure-credentials">
-            <label>
-              <span>Azure Speech Key</span>
-              <input
-                type="password"
-                autoComplete="off"
-                value={azureKey}
-                onChange={(event) => setAzureKey(event.target.value)}
-                placeholder="只保存在本机，不会同步"
-              />
-            </label>
-            <label>
-              <span>Region</span>
-              <input
-                type="text"
-                value={settings.azureRegion}
-                onChange={(event) => setSettings({ ...settings, azureRegion: event.target.value.trim() })}
-                placeholder="例如 eastasia"
-              />
-            </label>
-            <label className="studio-check">
-              <input
-                type="checkbox"
-                checked={settings.fallbackToBrowser}
-                onChange={(event) => setSettings({ ...settings, fallbackToBrowser: event.target.checked })}
-              />
-              Azure 失败时自动回退本机声音
-            </label>
+          <div className="credential-panel">
+            <div className="section-title section-title--inverse"><span>02</span><h2>{copy.credentials}</h2></div>
+            <div className="credential-grid">
+              <label><span>{copy.key}</span><input type="password" autoComplete="off" value={azureKey} onChange={(event) => setAzureKey(event.target.value)} placeholder={copy.keyPlaceholder} /></label>
+              <div className="read-only-field"><span>{copy.region}</span><strong>{settings.azureRegion || copy.regionMissing}</strong></div>
+            </div>
+            <p className="privacy-note"><span aria-hidden="true">●</span>{copy.privacy}</p>
           </div>
         )}
       </section>
 
-      <section className="studio-section">
-        <div className="studio-section__heading">
-          <div>
-            <span>02</span>
-            <h2>三语声线</h2>
-          </div>
-          <label className="default-language">
-            无法判断时
-            <select
-              value={settings.defaultLanguage}
-              onChange={(event) => setSettings({ ...settings, defaultLanguage: event.target.value as SupportedLanguage })}
-            >
-              <option value="zh">中文</option>
-              <option value="en">English</option>
-              <option value="ja">日本語</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="language-grid">
+      <section className="voice-setup__section">
+        <div className="section-title"><span>{settings.provider === 'azure' ? '03' : '02'}</span><h2>{copy.voices}</h2></div>
+        <div className="voice-list">
           {(Object.keys(LANGUAGE_META) as SupportedLanguage[]).map((language) => {
             const meta = LANGUAGE_META[language];
             return (
-              <article className="language-card" key={language} data-language={language}>
-                <div className="language-card__top">
-                  <div>
-                    <small>{meta.locale}</small>
-                    <h3>{meta.label}</h3>
-                  </div>
-                  <button type="button" onClick={() => void testVoice(language)} disabled={testingLanguage !== null}>
-                    {testingLanguage === language ? '试听中…' : '试听'}
-                  </button>
-                </div>
-
-                {settings.provider === 'azure' ? (
-                  <label>
-                    <span>Azure voice</span>
-                    <select
-                      value={settings.azureVoices[language]}
-                      onChange={(event) => updateVoiceMap('azureVoices', language, event.target.value)}
-                    >
-                      {AZURE_VOICE_OPTIONS[language].map((voice) => (
-                        <option key={voice.value} value={voice.value}>{voice.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                ) : (
-                  <label>
-                    <span>Browser voice</span>
-                    <select
-                      value={settings.browserVoices[language]}
-                      onChange={(event) => updateVoiceMap('browserVoices', language, event.target.value)}
-                    >
-                      <option value="">自动选择最佳可用声音</option>
-                      {browserVoices[language].map((voice) => (
-                        <option key={`${voice.name}-${voice.lang}`} value={voice.name}>
-                          {voice.name} · {voice.lang}{voice.localService ? ' · Local' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-
+              <article className="voice-row" key={language} data-language={language}>
+                <div className="voice-row__language"><small>{meta.locale}</small><strong>{displayLanguage === 'zh' ? meta.native : meta.english}</strong></div>
                 <label>
-                  <span>Cloze 读法</span>
-                  <input
-                    type="text"
-                    value={settings.clozeWords[language]}
-                    onChange={(event) => updateVoiceMap('clozeWords', language, event.target.value)}
-                  />
+                  <span>{copy.voice}</span>
+                  {settings.provider === 'azure' ? (
+                    <select value={settings.azureVoices[language]} onChange={(event) => updateVoice('azureVoices', language, event.target.value)}>
+                      {AZURE_VOICE_OPTIONS[language].map((voice) => <option key={voice.value} value={voice.value}>{voice.label}</option>)}
+                    </select>
+                  ) : (
+                    <select value={settings.browserVoices[language]} onChange={(event) => updateVoice('browserVoices', language, event.target.value)}>
+                      <option value="">{copy.automatic}</option>
+                      {browserVoices[language].map((voice) => <option key={`${voice.name}-${voice.lang}`} value={voice.name}>{voice.name} · {voice.lang}{voice.localService ? ' · Local' : ''}</option>)}
+                    </select>
+                  )}
                 </label>
+                <button className="preview-button" type="button" onClick={() => void testVoice(language)} disabled={testingLanguage !== null}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  {testingLanguage === language ? copy.previewing : copy.preview}
+                </button>
               </article>
             );
           })}
         </div>
       </section>
 
-      <section className="studio-section studio-section--behavior">
-        <div className="studio-section__heading">
-          <div>
-            <span>03</span>
-            <h2>复习节奏</h2>
-          </div>
-        </div>
-
-        <div className="tts-conflict-guard" data-confirmed={settings.officialTtsDisabledConfirmed}>
-          <div>
-            <strong>避免两套声音同时播放</strong>
-            <p>
-              请先在 RemNote Settings → Queue → Text to Speech 中关闭官方自动播放。
-              插件无法安全读取或替你修改这个 RemNote 设置。
-            </p>
-          </div>
-          <label className="studio-check">
-            <input
-              type="checkbox"
-              checked={settings.officialTtsDisabledConfirmed}
-              onChange={(event) => {
-                const confirmed = event.target.checked;
-                setSettings({
-                  ...settings,
-                  officialTtsDisabledConfirmed: confirmed,
-                  autoReadQuestion: confirmed ? settings.autoReadQuestion : false,
-                  autoReadAnswer: confirmed ? settings.autoReadAnswer : false,
-                });
-              }}
-            />
-            我已关闭 RemNote 官方自动 TTS
-          </label>
-        </div>
-
-        <div className="behavior-grid">
-          <label className="studio-check studio-check--large">
-            <input
-              type="checkbox"
-              checked={settings.autoReadQuestion}
-              disabled={!settings.officialTtsDisabledConfirmed}
-              onChange={(event) => setSettings({ ...settings, autoReadQuestion: event.target.checked })}
-            />
-            <span><b>问题面自动朗读</b><small>新卡片出现时开始</small></span>
-          </label>
-          <label className="studio-check studio-check--large">
-            <input
-              type="checkbox"
-              checked={settings.autoReadAnswer}
-              disabled={!settings.officialTtsDisabledConfirmed}
-              onChange={(event) => setSettings({ ...settings, autoReadAnswer: event.target.checked })}
-            />
-            <span><b>答案面自动朗读</b><small>翻面后开始</small></span>
-          </label>
-          <label className="studio-range">
-            <span><b>语速</b><output>{settings.rate.toFixed(1)}×</output></span>
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={settings.rate}
-              onChange={(event) => setSettings({ ...settings, rate: Number(event.target.value) })}
-            />
-          </label>
-          <label className="studio-range">
-            <span><b>音量</b><output>{Math.round(settings.volume * 100)}%</output></span>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={settings.volume}
-              onChange={(event) => setSettings({ ...settings, volume: Number(event.target.value) })}
-            />
-          </label>
-        </div>
-      </section>
-
-      <footer className="studio-footer">
-        <div>
-          <strong>隐私提示</strong>
-          <span>Azure 模式只发送正在朗读的文本；Key 仅保存在本机 RemNote storage。</span>
-        </div>
-        <button type="button" onClick={() => void save()} disabled={saving}>
-          {saving ? '保存中…' : '保存设置'}
-        </button>
+      <footer className="voice-setup__footer">
+        <button type="button" className="primary-button" onClick={() => void save()} disabled={saving}>{saving ? copy.saving : copy.save}</button>
       </footer>
     </main>
   );

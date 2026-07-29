@@ -1,0 +1,37 @@
+.preview-stage {
+  min-height: 100vh;
+  padding: 80px 32px;
+  background: #f7f7fa;
+}
+
+.preview-card {
+  width: min(760px, 100%);
+  min-height: 360px;
+  margin: 0 auto;
+  padding: 34px;
+  background: white;
+  border: 1px solid #e6e7ec;
+  border-radius: 18px;
+  box-shadow: 0 14px 42px rgba(35, 37, 46, 0.08);
+}
+
+.preview-card__deck {
+  display: inline-block;
+  padding: 7px 11px;
+  color: #494b56;
+  background: #f2f2f7;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.preview-card p {
+  margin: 22px 0 0;
+  font-size: 24px;
+}
+
+.preview-card mark {
+  padding: 2px 9px;
+  color: #5540c4;
+  background: #efecff;
+  border-radius: 7px;
+}
