@@ -26,6 +26,7 @@ function FlashcardSpeechWidget() {
   const [status, setStatus] = useState<SpeechStatus>('loading');
   const contextSignatureRef = useRef('');
   const autoSpokenSignatureRef = useRef('');
+  const autoSpeakTimerRef = useRef<number | null>(null);
 
   const refresh = useCallback(async (forceSettings = false) => {
     try {
@@ -67,10 +68,12 @@ function FlashcardSpeechWidget() {
     } catch (error) {
       console.error('Smart Flashcard TTS playback failed.', error);
       setStatus('error');
+      const rawMessage = error instanceof Error ? error.message : String(error);
+      const safeMessage = azureKey ? rawMessage.replaceAll(azureKey, '[redacted]') : rawMessage;
       await plugin.app.toast(
         settings.uiLanguage === 'zh'
-          ? '朗读失败。请打开高级声音设置检查声音配置。'
-          : 'Speech failed. Open Advanced Voice Setup to check the voice configuration.',
+          ? `朗读失败：${safeMessage}`
+          : `Speech failed: ${safeMessage}`,
       );
     }
   }, [azureKey, context, plan, plugin, settings]);
@@ -89,9 +92,10 @@ function FlashcardSpeechWidget() {
     plugin.event.addListener(AppEvents.StorageLocalChange, listenerKey, handleSettingsChange);
 
     // A lightweight poll also catches native plugin-setting changes and queue remounts.
-    const pollId = window.setInterval(() => void refresh(true), 1200);
+    const pollId = window.setInterval(() => void refresh(true), 2500);
 
     return () => {
+      if (autoSpeakTimerRef.current !== null) window.clearTimeout(autoSpeakTimerRef.current);
       window.clearInterval(pollId);
       controller.cancel();
       plugin.event.removeListener(AppEvents.RevealAnswer, listenerKey, handleReveal);
@@ -108,7 +112,20 @@ function FlashcardSpeechWidget() {
 
     const shouldAutoRead = context.revealed ? settings.autoReadAnswer : settings.autoReadQuestion;
     autoSpokenSignatureRef.current = signature;
-    if (shouldAutoRead) void speakCurrentSide();
+    if (!shouldAutoRead) return;
+
+    // Let RemNote finish mounting the card, fonts, and Cloze layout before audio
+    // starts. A card change or effect rerun cancels the pending playback.
+    if (autoSpeakTimerRef.current !== null) window.clearTimeout(autoSpeakTimerRef.current);
+    autoSpeakTimerRef.current = window.setTimeout(() => {
+      autoSpeakTimerRef.current = null;
+      void speakCurrentSide();
+    }, 1200);
+
+    return () => {
+      if (autoSpeakTimerRef.current !== null) window.clearTimeout(autoSpeakTimerRef.current);
+      autoSpeakTimerRef.current = null;
+    };
   }, [context, plan, settings, speakCurrentSide]);
 
   if (!settings?.enabled || (!plan && status !== 'loading')) return null;

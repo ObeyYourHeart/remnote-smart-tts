@@ -102,8 +102,7 @@ function chooseBrowserVoice(
 export class SpeechController {
   private generation = 0;
   private activeSynthesizer: import('microsoft-cognitiveservices-speech-sdk').SpeechSynthesizer | null = null;
-  private activeAudio: HTMLAudioElement | null = null;
-  private activeObjectUrl: string | null = null;
+  private activePlayer: import('microsoft-cognitiveservices-speech-sdk').SpeakerAudioDestination | null = null;
 
   cancel(): void {
     this.generation += 1;
@@ -113,14 +112,10 @@ export class SpeechController {
       this.activeSynthesizer.close();
       this.activeSynthesizer = null;
     }
-    if (this.activeAudio) {
-      this.activeAudio.pause();
-      this.activeAudio.src = '';
-      this.activeAudio = null;
-    }
-    if (this.activeObjectUrl) {
-      URL.revokeObjectURL(this.activeObjectUrl);
-      this.activeObjectUrl = null;
+    if (this.activePlayer) {
+      this.activePlayer.pause();
+      this.activePlayer.close();
+      this.activePlayer = null;
     }
   }
 
@@ -197,11 +192,17 @@ export class SpeechController {
 
     for (const chunk of splitSpeechText(content.text, 450)) {
       if (generation !== this.generation) return;
-      // Passing null disables the SDK's default-speaker output. The plugin
-      // plays result.audioData itself so volume, cancellation, and cleanup have
-      // one owner and Azure speech is never heard twice.
-      const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, null);
+      // A single explicit SDK player avoids both double playback and a second
+      // manual audio.play() call that Chrome can reject during card autoplay.
+      const player = new SpeechSDK.SpeakerAudioDestination();
+      player.volume = settings.volume;
+      const playbackFinished = new Promise<void>((resolve) => {
+        player.onAudioEnd = () => resolve();
+      });
+      const audioConfig = SpeechSDK.AudioConfig.fromSpeakerOutput(player);
+      const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, audioConfig);
       this.activeSynthesizer = synthesizer;
+      this.activePlayer = player;
 
       const ssml = [
         `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${LOCALES[content.language]}">`,
@@ -211,14 +212,14 @@ export class SpeechController {
         '</speak>',
       ].join('');
 
-      const audioData = await new Promise<ArrayBuffer>((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         synthesizer.speakSsmlAsync(
           ssml,
           (result) => {
             synthesizer.close();
             this.activeSynthesizer = null;
             if (result.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
-              resolve(result.audioData);
+              resolve();
             } else {
               reject(new Error(result.errorDetails || 'Azure Speech did not return audio.'));
             }
@@ -232,36 +233,23 @@ export class SpeechController {
       });
 
       if (generation !== this.generation) return;
-      await this.playAzureAudio(audioData, settings.volume, generation);
+      await new Promise<void>((resolve) => {
+        const timeoutId = window.setTimeout(resolve, 90_000);
+        void playbackFinished.then(() => {
+          window.clearTimeout(timeoutId);
+          resolve();
+        });
+      });
+      if (generation !== this.generation) return;
+      this.activePlayer = null;
     }
-  }
-
-  private async playAzureAudio(audioData: ArrayBuffer, volume: number, generation: number): Promise<void> {
-    this.cleanupAzureAudio();
-    const objectUrl = URL.createObjectURL(new Blob([audioData], { type: 'audio/mpeg' }));
-    const audio = new Audio(objectUrl);
-    audio.volume = volume;
-    this.activeAudio = audio;
-    this.activeObjectUrl = objectUrl;
-
-    await new Promise<void>((resolve, reject) => {
-      audio.onended = () => resolve();
-      audio.onerror = () => reject(new Error('Chrome could not play the Azure audio response.'));
-      audio.play().catch((error) => reject(error));
-    });
-
-    if (generation === this.generation) this.cleanupAzureAudio();
   }
 
   private cleanupAzureAudio(): void {
-    if (this.activeAudio) {
-      this.activeAudio.pause();
-      this.activeAudio.src = '';
-      this.activeAudio = null;
-    }
-    if (this.activeObjectUrl) {
-      URL.revokeObjectURL(this.activeObjectUrl);
-      this.activeObjectUrl = null;
+    if (this.activePlayer) {
+      this.activePlayer.pause();
+      this.activePlayer.close();
+      this.activePlayer = null;
     }
   }
 }

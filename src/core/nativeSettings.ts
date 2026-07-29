@@ -88,7 +88,7 @@ export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
     id: NATIVE_SETTING_IDS.rate,
     title: 'Speech rate / 语速',
     description: 'Recommended range: 0.5 to 2.0. / 建议范围：0.5 到 2.0。',
-    defaultValue: 1,
+    defaultValue: 0.9,
   });
   await plugin.settings.registerNumberSetting({
     id: NATIVE_SETTING_IDS.volumePercent,

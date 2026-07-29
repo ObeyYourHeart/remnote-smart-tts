@@ -13,7 +13,7 @@ export const DEFAULT_SETTINGS: SpeechSettings = {
   provider: 'browser',
   fallbackToBrowser: true,
   defaultLanguage: 'zh',
-  rate: 1,
+  rate: 0.9,
   volume: 1,
   browserVoices: {
     zh: '',

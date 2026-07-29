@@ -14,7 +14,8 @@ interface SpeechControlProps {
 function VoiceIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 10v4M9 7v10M13 4v16M17 8v8M21 10v4" />
+      <path d="M4 10h3.2L12 6.5v11L7.2 14H4z" />
+      <path d="M15.5 9.2a4 4 0 0 1 0 5.6M18.2 6.8a7.4 7.4 0 0 1 0 10.4" />
     </svg>
   );
 }
