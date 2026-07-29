@@ -26,6 +26,15 @@ test('allows autoplay after explicit conflict confirmation', () => {
   assert.equal(settings.autoReadAnswer, true);
 });
 
+test('enables question autoplay by default after the safety confirmation', () => {
+  const settings = normalizeSettings({
+    officialTtsDisabledConfirmed: true,
+  });
+
+  assert.equal(settings.autoReadQuestion, true);
+  assert.equal(settings.autoReadAnswer, false);
+});
+
 test('normalizes the bilingual interface language', () => {
   assert.equal(normalizeSettings({ uiLanguage: 'zh' }).uiLanguage, 'zh');
   assert.equal(normalizeSettings({ uiLanguage: 'en' }).uiLanguage, 'en');

@@ -67,7 +67,9 @@ export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
     id: NATIVE_SETTING_IDS.autoReadQuestion,
     title: 'Autoplay question / 自动朗读问题面',
     description: 'Read the question when a new card appears. Requires the safety confirmation above. / 新卡片出现时朗读问题面，需要先完成上方安全确认。',
-    defaultValue: false,
+    // Question-side autoplay is the primary feature. The separate safety
+    // confirmation below still prevents it from running alongside RemNote TTS.
+    defaultValue: true,
   });
   await plugin.settings.registerBooleanSetting({
     id: NATIVE_SETTING_IDS.autoReadAnswer,

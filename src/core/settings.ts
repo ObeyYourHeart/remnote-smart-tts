@@ -9,7 +9,7 @@ export const DEFAULT_SETTINGS: SpeechSettings = {
   uiLanguage: 'en',
   enabled: true,
   officialTtsDisabledConfirmed: false,
-  autoReadQuestion: false,
+  autoReadQuestion: true,
   autoReadAnswer: false,
   provider: 'browser',
   fallbackToBrowser: true,
@@ -60,7 +60,9 @@ export function normalizeSettings(saved?: Partial<SpeechSettings> | null): Speec
     defaultLanguage,
     officialTtsDisabledConfirmed,
     // Autoplay stays locked until the user confirms RemNote's own autoplay TTS is off.
-    autoReadQuestion: officialTtsDisabledConfirmed && saved?.autoReadQuestion === true,
+    autoReadQuestion:
+      officialTtsDisabledConfirmed &&
+      (saved?.autoReadQuestion ?? DEFAULT_SETTINGS.autoReadQuestion) === true,
     autoReadAnswer: officialTtsDisabledConfirmed && saved?.autoReadAnswer === true,
     rate: clamp(saved?.rate, 0.5, 2, DEFAULT_SETTINGS.rate),
     volume: clamp(saved?.volume, 0, 1, DEFAULT_SETTINGS.volume),

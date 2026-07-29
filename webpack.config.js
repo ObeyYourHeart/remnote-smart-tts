@@ -96,7 +96,23 @@ const config = {
     }),
     new CopyPlugin({
       patterns: [
-        { from: 'public', to: '' },
+        {
+          from: 'public',
+          to: '',
+          transform(content, absoluteFrom) {
+            // RemNote will not install a localhost build when the store version with
+            // the same plugin ID is already present. Give development builds their
+            // own identity so both versions can be inspected without uninstalling.
+            if (isDevelopment && path.basename(absoluteFrom) === 'manifest.json') {
+              const manifest = JSON.parse(content.toString());
+              manifest.id = `${manifest.id}-dev`;
+              manifest.name = `${manifest.name} [DEV]`;
+              return JSON.stringify(manifest, null, 2);
+            }
+
+            return content;
+          },
+        },
         { from: 'README.md', to: '' },
       ],
     }),
