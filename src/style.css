@@ -41,75 +41,81 @@ select:focus-visible {
 .speech-control {
   display: inline-flex;
   align-items: center;
-  height: 38px;
-  margin: 7px 0 2px 22px;
-  padding: 3px;
-  color: #5f6370;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(91, 92, 106, 0.17);
-  border-radius: 12px;
-  box-shadow: 0 3px 10px rgba(32, 34, 42, 0.08);
-  backdrop-filter: blur(10px);
+  gap: 6px;
+  margin: 8px 0 3px 22px;
 }
 
 .speech-control button {
   display: inline-grid;
   place-items: center;
-  width: 31px;
-  height: 30px;
   padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 9px;
   cursor: pointer;
-  transition: color 140ms ease, background 140ms ease, transform 140ms ease;
-}
-
-.speech-control button:hover:not(:disabled) {
-  color: var(--sf-accent);
-  background: var(--sf-accent-soft);
-  transform: translateY(-1px);
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
 
 .speech-control button:active:not(:disabled) { transform: translateY(0); }
 .speech-control button:disabled { cursor: default; opacity: 0.35; }
 
 .speech-control svg {
-  width: 17px;
-  height: 17px;
-  fill: currentColor;
+  width: 18px;
+  height: 18px;
+  fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 1.9;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.speech-control__settings svg { fill: none; }
-
 .speech-control__primary {
   position: relative;
-  color: var(--sf-accent);
+  width: 38px;
+  height: 38px;
+  color: white;
+  background: linear-gradient(145deg, #765ee5, #5d45c7);
+  border: 1px solid rgba(73, 51, 178, 0.28);
+  border-radius: 50%;
+  box-shadow: 0 5px 14px rgba(91, 67, 199, 0.25), inset 0 1px rgba(255, 255, 255, 0.24);
 }
 
 .speech-control__primary svg { position: relative; z-index: 1; }
 
-.speech-control__divider {
-  width: 1px;
-  height: 18px;
-  margin: 0 2px;
-  background: var(--sf-line);
+.speech-control__primary:hover:not(:disabled) {
+  background: linear-gradient(145deg, #8069ea, #654bd0);
+  box-shadow: 0 7px 17px rgba(91, 67, 199, 0.31), inset 0 1px rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
 }
+
+.speech-control__settings {
+  width: 27px;
+  height: 27px;
+  color: #797d89;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid transparent;
+  border-radius: 50%;
+}
+
+.speech-control__settings:hover:not(:disabled) {
+  color: var(--sf-accent);
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(103, 80, 216, 0.16);
+  box-shadow: 0 3px 10px rgba(32, 34, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.speech-control__settings svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
 
 .speech-control__pulse {
   position: absolute;
-  inset: 5px;
-  background: var(--sf-accent-soft);
-  border-radius: 7px;
+  inset: -4px;
+  border: 2px solid rgba(103, 80, 216, 0.36);
+  border-radius: 50%;
   opacity: 0;
 }
 
 .speech-control[data-status="speaking"] .speech-control__primary {
-  color: var(--sf-danger);
+  background: linear-gradient(145deg, #d25c67, #b74250);
+  border-color: rgba(145, 42, 54, 0.28);
+  box-shadow: 0 5px 14px rgba(183, 66, 80, 0.25), inset 0 1px rgba(255, 255, 255, 0.22);
 }
 
 .speech-control[data-status="speaking"] .speech-control__pulse {
@@ -118,7 +124,7 @@ select:focus-visible {
 }
 
 .speech-control[data-status="error"] {
-  border-color: rgba(192, 71, 71, 0.35);
+  filter: saturate(0.45);
 }
 
 @keyframes sf-pulse {

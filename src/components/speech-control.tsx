@@ -11,16 +11,26 @@ interface SpeechControlProps {
   onOpenSettings: () => void;
 }
 
-function PlayIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>;
+function VoiceIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 10v4M9 7v10M13 4v16M17 8v8M21 10v4" />
+    </svg>
+  );
 }
 
 function StopIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1" /></svg>;
 }
 
-function SlidersIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10m4 0h2M4 17h2m4 0h10M14 4v6M6 14v6" /></svg>;
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="5" cy="12" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="19" cy="12" r="1.6" />
+    </svg>
+  );
 }
 
 export function SpeechControl({
@@ -45,11 +55,10 @@ export function SpeechControl({
         title={speaking ? stopLabel : playLabel}
       >
         <span className="speech-control__pulse" aria-hidden="true" />
-        {speaking ? <StopIcon /> : <PlayIcon />}
+        {speaking ? <StopIcon /> : <VoiceIcon />}
       </button>
-      <span className="speech-control__divider" aria-hidden="true" />
       <button type="button" className="speech-control__settings" onClick={onOpenSettings} aria-label={settingsLabel} title={settingsLabel}>
-        <SlidersIcon />
+        <MoreIcon />
       </button>
     </div>
   );

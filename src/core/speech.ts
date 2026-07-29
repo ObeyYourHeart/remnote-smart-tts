@@ -197,7 +197,10 @@ export class SpeechController {
 
     for (const chunk of splitSpeechText(content.text, 450)) {
       if (generation !== this.generation) return;
-      const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig);
+      // Passing null disables the SDK's default-speaker output. The plugin
+      // plays result.audioData itself so volume, cancellation, and cleanup have
+      // one owner and Azure speech is never heard twice.
+      const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, null);
       this.activeSynthesizer = synthesizer;
 
       const ssml = [

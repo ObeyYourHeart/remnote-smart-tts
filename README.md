@@ -22,6 +22,7 @@ Smart Flashcard TTS provides complete, structure-aware card reading for the RemN
 - Supports `zh-CN-XiaoxiaoNeural` in Chrome through Azure Speech.
 - Falls back to a browser voice when Azure is unavailable, if enabled.
 - Offers one autoplay mode control: Off, Question only, Answer only, or Question and answer.
+- Can visually replace RemNote's Front/Back TTS row with one compact voice control.
 
 ### Installation
 
@@ -32,7 +33,7 @@ Install from the RemNote Plugin Store after approval, or use the latest release 
 
 ### Settings and card controls
 
-Everyday controls are integrated into **RemNote Settings → Plugins → Smart Flashcard TTS** with English-first bilingual labels. This includes autoplay mode, Cloze prompts, provider, fallback language, rate, and volume. **Advanced Voice Setup** keeps the Azure Speech Key and Region together, alongside voice selection and previews. The flashcard UI stays intentionally minimal: one play/stop button and one advanced-setup button.
+Everyday controls are integrated into **RemNote Settings → Plugins → Smart Flashcard TTS** with English-first bilingual labels. This includes autoplay mode, Cloze prompts, provider, fallback language, rate, volume, and the optional replacement of RemNote's visible TTS row. **Advanced Voice Setup** keeps the Azure Speech Key and Region together, alongside voice selection and previews. The flashcard UI stays intentionally minimal: one voice/stop button and one advanced-setup button.
 
 ### Voice providers
 
@@ -99,6 +100,7 @@ Smart Flashcard TTS（智能卡片朗读）为 RemNote 复习队列提供完整�
 - Chrome 可通过 Azure 使用 `zh-CN-XiaoxiaoNeural` 晓晓声音。
 - Azure 不可用时可选择自动退回浏览器声音。
 - 提供统一的自动朗读模式：关闭、仅问题、仅答案、问题和答案。
+- 可用一个紧凑的声音控件在视觉上替代 RemNote 官方 Front/Back 朗读行。
 
 ### 安装
 
@@ -109,7 +111,7 @@ Smart Flashcard TTS（智能卡片朗读）为 RemNote 复习队列提供完整�
 
 ### 设置与卡片控件
 
-日常选项已经集成到 **RemNote 设置 → 插件 → Smart Flashcard TTS**，采用英文优先的中英双语标签，包括自动朗读模式、Cloze 用词、声音来源、默认语言、语速与音量。**高级声音设置**把 Azure Speech Key 与 Region 放在一起，并提供声音选择和试听。卡片内默认只显示一个播放/停止按钮和一个高级声音设置按钮。
+日常选项已经集成到 **RemNote 设置 → 插件 → Smart Flashcard TTS**，采用英文优先的中英双语标签，包括自动朗读模式、Cloze 用词、声音来源、默认语言、语速、音量，以及是否替代官方可见朗读行。**高级声音设置**把 Azure Speech Key 与 Region 放在一起，并提供声音选择和试听。卡片内默认只显示一个声音/停止按钮和一个高级声音设置按钮。
 
 ### 声音来源
 

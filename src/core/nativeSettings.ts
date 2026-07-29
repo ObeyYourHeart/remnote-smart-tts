@@ -13,6 +13,7 @@ export const NATIVE_SETTING_IDS = {
   provider: 'smart-tts-provider',
   defaultLanguage: 'smart-tts-default-language',
   autoplayMode: 'smart-tts-autoplay-mode',
+  replaceRemNoteTtsControls: 'smart-tts-replace-remnote-controls',
   rate: 'smart-tts-rate',
   volumePercent: 'smart-tts-volume-percent',
   fallbackToBrowser: 'smart-tts-browser-fallback',
@@ -42,6 +43,12 @@ export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
     id: NATIVE_SETTING_IDS.enabled,
     title: 'Enable Smart Flashcard TTS / 启用智能卡片朗读',
     description: 'Show the compact player and allow card speech. / 显示极简播放器并允许卡片朗读。',
+    defaultValue: true,
+  });
+  await plugin.settings.registerBooleanSetting({
+    id: NATIVE_SETTING_IDS.replaceRemNoteTtsControls,
+    title: 'Replace RemNote TTS controls / 替代官方朗读控件',
+    description: 'Hide the Front/Back TTS row in the queue so this plugin is the only visible player. This is visual only; keep RemNote Autoplay Text to Speech off. / 隐藏队列中的官方正面/背面朗读行，只保留本插件播放器；此选项仅改变外观，请保持 RemNote 官方自动朗读关闭。',
     defaultValue: true,
   });
   await plugin.settings.registerDropdownSetting({
