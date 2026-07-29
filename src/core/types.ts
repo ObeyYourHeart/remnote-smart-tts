@@ -4,6 +4,8 @@ export type SpeechProvider = 'browser' | 'azure';
 
 export type InterfaceLanguage = 'en' | 'zh';
 
+export type AutoplayMode = 'off' | 'question' | 'answer' | 'both';
+
 export interface LanguageVoiceMap {
   zh: string;
   en: string;
@@ -13,7 +15,6 @@ export interface LanguageVoiceMap {
 export interface SpeechSettings {
   uiLanguage: InterfaceLanguage;
   enabled: boolean;
-  officialTtsDisabledConfirmed: boolean;
   autoReadQuestion: boolean;
   autoReadAnswer: boolean;
   provider: SpeechProvider;

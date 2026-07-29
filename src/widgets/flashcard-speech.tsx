@@ -102,7 +102,7 @@ function FlashcardSpeechWidget() {
   }, [plugin, refresh]);
 
   useEffect(() => {
-    if (!plan || !context || !settings?.enabled || !settings.officialTtsDisabledConfirmed) return;
+    if (!plan || !context || !settings?.enabled) return;
     const signature = `${plan.cardId}:${context.revealed}`;
     if (autoSpokenSignatureRef.current === signature) return;
 

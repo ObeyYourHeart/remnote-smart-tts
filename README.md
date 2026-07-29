@@ -21,7 +21,7 @@ Smart Flashcard TTS provides complete, structure-aware card reading for the RemN
 - Provides independent voice selection for Chinese, English, and Japanese.
 - Supports `zh-CN-XiaoxiaoNeural` in Chrome through Azure Speech.
 - Falls back to a browser voice when Azure is unavailable, if enabled.
-- Includes an autoplay safety interlock to prevent duplicate speech with RemNote's built-in TTS.
+- Offers one autoplay mode control: Off, Question only, Answer only, or Question and answer.
 
 ### Installation
 
@@ -32,7 +32,7 @@ Install from the RemNote Plugin Store after approval, or use the latest release 
 
 ### Settings and card controls
 
-Everyday controls are integrated into **RemNote Settings → Plugins → Smart Flashcard TTS** with English-first bilingual labels. This includes autoplay, Cloze prompts, provider, fallback language, rate, and volume. **Advanced Voice Setup** is reserved for local Azure credentials, dynamic browser voice selection, and voice previews. The flashcard UI stays intentionally minimal: one play/stop button and one advanced-setup button.
+Everyday controls are integrated into **RemNote Settings → Plugins → Smart Flashcard TTS** with English-first bilingual labels. This includes autoplay mode, Cloze prompts, provider, fallback language, rate, and volume. **Advanced Voice Setup** keeps the Azure Speech Key and Region together, alongside voice selection and previews. The flashcard UI stays intentionally minimal: one play/stop button and one advanced-setup button.
 
 ### Voice providers
 
@@ -54,13 +54,9 @@ Recommended defaults:
 
 ### Preventing conflicts with RemNote TTS
 
-RemNote provides its own Queue Text to Speech and table-column TTS. The Plugin SDK does not currently expose a supported way to read or disable those settings, so Smart Flashcard TTS uses an explicit safety interlock:
+RemNote provides its own Queue Text to Speech and table-column TTS. The Plugin SDK does not currently expose a supported way for a plugin to read or disable those settings. Smart Flashcard TTS therefore does not show a misleading confirmation switch or attempt to change RemNote's preferences.
 
-1. Disable RemNote autoplay in **Settings → Queue → Text to Speech**.
-2. In **Settings → Plugins → Smart Flashcard TTS**, confirm **I disabled RemNote's autoplay TTS**.
-3. Enable question-side and/or answer-side autoplay.
-
-Autoplay is locked off for new installations and upgrades from 0.1 until this confirmation is made. Manual replay remains available. The plugin does not forcibly stop RemNote audio or media embedded in cards.
+Choose **Autoplay mode** in **Settings → Plugins → Smart Flashcard TTS**. If two voices play, set the plugin mode to **Off** or turn off the relevant RemNote TTS feature where it was enabled. Before its own playback, the plugin cancels active browser speech where the Web Speech API allows; it cannot forcibly stop RemNote audio or media embedded in cards.
 
 ### Privacy and permissions
 
@@ -102,7 +98,7 @@ Smart Flashcard TTS（智能卡片朗读）为 RemNote 复习队列提供完整�
 - 中文、英文、日文可以独立选择 voice。
 - Chrome 可通过 Azure 使用 `zh-CN-XiaoxiaoNeural` 晓晓声音。
 - Azure 不可用时可选择自动退回浏览器声音。
-- 内置自动朗读安全锁，避免与 RemNote 官方 TTS 重复播放。
+- 提供统一的自动朗读模式：关闭、仅问题、仅答案、问题和答案。
 
 ### 安装
 
@@ -113,7 +109,7 @@ Smart Flashcard TTS（智能卡片朗读）为 RemNote 复习队列提供完整�
 
 ### 设置与卡片控件
 
-日常选项已经集成到 **RemNote 设置 → 插件 → Smart Flashcard TTS**，采用英文优先的中英双语标签，包括自动朗读、Cloze 用词、声音来源、默认语言、语速与音量。**高级声音设置**只负责本机 Azure Key、动态浏览器声音选择和试听。卡片内默认只显示一个播放/停止按钮和一个高级声音设置按钮。
+日常选项已经集成到 **RemNote 设置 → 插件 → Smart Flashcard TTS**，采用英文优先的中英双语标签，包括自动朗读模式、Cloze 用词、声音来源、默认语言、语速与音量。**高级声音设置**把 Azure Speech Key 与 Region 放在一起，并提供声音选择和试听。卡片内默认只显示一个播放/停止按钮和一个高级声音设置按钮。
 
 ### 声音来源
 
@@ -135,13 +131,9 @@ Azure 模式需要你自己的 Azure Speech resource、Speech Key、Region 和�
 
 ### 避免与 RemNote 官方朗读冲突
 
-RemNote 自带 Queue Text to Speech，表格列也可以启用 TTS。Plugin SDK 目前没有提供读取或关闭这些设置的可靠接口，因此插件使用显式安全锁：
+RemNote 自带 Queue Text to Speech，表格列也可以启用 TTS。Plugin SDK 目前没有提供让插件读取或关闭这些设置的可靠接口。因此 Smart Flashcard TTS 不再显示会造成误解的确认开关，也不会擅自修改 RemNote 的偏好。
 
-1. 在 **Settings → Queue → Text to Speech** 中关闭 RemNote 官方自动播放。
-2. 在 **设置 → 插件 → Smart Flashcard TTS** 中确认 **我已关闭 RemNote 官方自动 TTS**。
-3. 再开启问题面和/或答案面自动朗读。
-
-新安装或从 0.1 升级时，自动朗读默认保持锁定；手动重播始终可用。插件不会强行停止 RemNote 音频或卡片中插入的媒体。
+请在 **设置 → 插件 → Smart Flashcard TTS** 中选择 **Autoplay mode / 自动朗读模式**。如果出现两套声音，把插件模式设为 **Off / 关闭**，或在原来启用它的位置关闭对应的 RemNote TTS。插件开始朗读前会在 Web Speech API 允许的范围内停止浏览器正在播放的语音，但无法强行停止 RemNote 音频或卡片内媒体。
 
 ### 隐私与权限
 
@@ -168,9 +160,9 @@ npm run build
 
 ## Acknowledgements / 致谢
 
-The project was inspired by [mrcoding-dev/rem-to-speech](https://github.com/mrcoding-dev/rem-to-speech) and was independently extended for card-aware multilingual speech, active Cloze prompts, Azure voices, and RemNote TTS conflict protection.
+The project was inspired by [mrcoding-dev/rem-to-speech](https://github.com/mrcoding-dev/rem-to-speech) and was independently extended for card-aware multilingual speech, active Cloze prompts, Azure voices, and explicit autoplay controls.
 
-本项目参考了 [mrcoding-dev/rem-to-speech](https://github.com/mrcoding-dev/rem-to-speech)，并针对卡片方向、多语言、当前 Cloze、Azure 声音及 RemNote 官方 TTS 冲突保护进行了独立扩展。
+本项目参考了 [mrcoding-dev/rem-to-speech](https://github.com/mrcoding-dev/rem-to-speech)，并针对卡片方向、多语言、当前 Cloze、Azure 声音及明确的自动朗读控制进行了独立扩展。
 
 ## License
 

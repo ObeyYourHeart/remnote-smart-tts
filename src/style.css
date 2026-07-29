@@ -371,7 +371,6 @@ select:focus-visible {
 .credential-grid > * { flex: 1 1 0; min-width: 0; }
 
 .credential-grid label > span,
-.read-only-field > span,
 .voice-row label > span {
   display: block;
   margin-bottom: 5px;
@@ -400,22 +399,6 @@ select:focus-visible {
 }
 
 .credential-grid input::placeholder { color: #9c9ca8; }
-
-.read-only-field strong {
-  display: flex;
-  align-items: center;
-  min-height: 35px;
-  padding: 0 10px;
-  overflow: hidden;
-  color: #e9e9ef;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 9px;
-  font-size: 10px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .privacy-note {
   margin: 9px 0 0;

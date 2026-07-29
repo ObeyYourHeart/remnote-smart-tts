@@ -1,24 +1,32 @@
 import type { RNPlugin } from '@remnote/plugin-sdk';
-import type { InterfaceLanguage, SpeechProvider, SpeechSettings, SupportedLanguage } from './types';
+import type {
+  AutoplayMode,
+  InterfaceLanguage,
+  SpeechProvider,
+  SpeechSettings,
+  SupportedLanguage,
+} from './types';
 
 export const NATIVE_SETTING_IDS = {
   uiLanguage: 'smart-tts-ui-language',
   enabled: 'smart-tts-enabled',
   provider: 'smart-tts-provider',
   defaultLanguage: 'smart-tts-default-language',
-  officialTtsDisabledConfirmed: 'smart-tts-official-tts-disabled',
-  autoReadQuestion: 'smart-tts-auto-question',
-  autoReadAnswer: 'smart-tts-auto-answer',
+  autoplayMode: 'smart-tts-autoplay-mode',
   rate: 'smart-tts-rate',
   volumePercent: 'smart-tts-volume-percent',
   fallbackToBrowser: 'smart-tts-browser-fallback',
-  azureRegion: 'smart-tts-azure-region',
   clozeZh: 'smart-tts-cloze-zh',
   clozeEn: 'smart-tts-cloze-en',
   clozeJa: 'smart-tts-cloze-ja',
 } as const;
 
-/** Registers the everyday controls directly in RemNote's own plugin settings page. */
+const LEGACY_SETTING_IDS = {
+  autoReadQuestion: 'smart-tts-auto-question',
+  autoReadAnswer: 'smart-tts-auto-answer',
+} as const;
+
+/** Registers everyday controls directly in RemNote's own plugin settings page. */
 export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
   await plugin.settings.registerDropdownSetting({
     id: NATIVE_SETTING_IDS.uiLanguage,
@@ -47,6 +55,18 @@ export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
     ],
   });
   await plugin.settings.registerDropdownSetting({
+    id: NATIVE_SETTING_IDS.autoplayMode,
+    title: 'Autoplay mode / 自动朗读模式',
+    description: 'Choose which card sides this plugin reads automatically. RemNote does not expose a supported switch for controlling its own TTS. / 选择本插件自动朗读的卡片面；RemNote 暂未提供控制官方 TTS 的插件接口。',
+    defaultValue: 'question',
+    options: [
+      { key: 'off', label: 'Off / 关闭', value: 'off' },
+      { key: 'question', label: 'Question only / 仅问题面', value: 'question' },
+      { key: 'answer', label: 'Answer only / 仅答案面', value: 'answer' },
+      { key: 'both', label: 'Question and answer / 问题面和答案面', value: 'both' },
+    ],
+  });
+  await plugin.settings.registerDropdownSetting({
     id: NATIVE_SETTING_IDS.defaultLanguage,
     title: 'Fallback language / 默认语言',
     description: 'Used only when the card language cannot be detected. / 仅在无法判断卡片语言时使用。',
@@ -56,26 +76,6 @@ export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
       { key: 'en', label: 'English', value: 'en' },
       { key: 'ja', label: 'Japanese / 日本語', value: 'ja' },
     ],
-  });
-  await plugin.settings.registerBooleanSetting({
-    id: NATIVE_SETTING_IDS.officialTtsDisabledConfirmed,
-    title: "I disabled RemNote's autoplay TTS / 我已关闭 RemNote 官方自动 TTS",
-    description: 'Required before plugin autoplay can be enabled, preventing two voices from playing together. / 开启插件自动朗读前必须确认，避免两套声音同时播放。',
-    defaultValue: false,
-  });
-  await plugin.settings.registerBooleanSetting({
-    id: NATIVE_SETTING_IDS.autoReadQuestion,
-    title: 'Autoplay question / 自动朗读问题面',
-    description: 'Read the question when a new card appears. Requires the safety confirmation above. / 新卡片出现时朗读问题面，需要先完成上方安全确认。',
-    // Question-side autoplay is the primary feature. The separate safety
-    // confirmation below still prevents it from running alongside RemNote TTS.
-    defaultValue: true,
-  });
-  await plugin.settings.registerBooleanSetting({
-    id: NATIVE_SETTING_IDS.autoReadAnswer,
-    title: 'Autoplay answer / 自动朗读答案面',
-    description: 'Read the answer after revealing it. Requires the safety confirmation above. / 翻面后朗读答案，需要先完成上方安全确认。',
-    defaultValue: false,
   });
   await plugin.settings.registerNumberSetting({
     id: NATIVE_SETTING_IDS.rate,
@@ -94,12 +94,6 @@ export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
     title: 'Browser fallback / 浏览器声音回退',
     description: 'Use a browser voice when Azure is unavailable. / Azure 不可用时自动改用浏览器声音。',
     defaultValue: true,
-  });
-  await plugin.settings.registerStringSetting({
-    id: NATIVE_SETTING_IDS.azureRegion,
-    title: 'Azure Speech region / Azure Speech 区域',
-    description: 'Example: eastasia. Keep your API key in Advanced Voice Setup; it stays local. / 例如 eastasia；API Key 请在高级声音设置中填写并仅保存在本机。',
-    defaultValue: '',
   });
   await plugin.settings.registerStringSetting({
     id: NATIVE_SETTING_IDS.clozeZh,
@@ -130,21 +124,34 @@ async function getSetting<T>(plugin: RNPlugin, id: string): Promise<T | undefine
   }
 }
 
-/** Reads RemNote-native values while leaving dynamic voice choices in plugin storage. */
+function autoplayFlags(mode: AutoplayMode | undefined, legacyQuestion?: boolean, legacyAnswer?: boolean) {
+  if (mode === 'off') return { autoReadQuestion: false, autoReadAnswer: false };
+  if (mode === 'question') return { autoReadQuestion: true, autoReadAnswer: false };
+  if (mode === 'answer') return { autoReadQuestion: false, autoReadAnswer: true };
+  if (mode === 'both') return { autoReadQuestion: true, autoReadAnswer: true };
+  if (typeof legacyQuestion === 'boolean' || typeof legacyAnswer === 'boolean') {
+    return {
+      autoReadQuestion: legacyQuestion === true,
+      autoReadAnswer: legacyAnswer === true,
+    };
+  }
+  return {};
+}
+
+/** Reads RemNote-native values while leaving credentials and dynamic voices in plugin storage. */
 export async function readNativeSettings(plugin: RNPlugin): Promise<Partial<SpeechSettings>> {
   if (!plugin.settings) return {};
   const [
     uiLanguage,
     enabled,
     provider,
+    autoplayMode,
+    legacyQuestion,
+    legacyAnswer,
     defaultLanguage,
-    officialTtsDisabledConfirmed,
-    autoReadQuestion,
-    autoReadAnswer,
     rate,
     volumePercent,
     fallbackToBrowser,
-    azureRegion,
     clozeZh,
     clozeEn,
     clozeJa,
@@ -152,14 +159,13 @@ export async function readNativeSettings(plugin: RNPlugin): Promise<Partial<Spee
     getSetting<InterfaceLanguage>(plugin, NATIVE_SETTING_IDS.uiLanguage),
     getSetting<boolean>(plugin, NATIVE_SETTING_IDS.enabled),
     getSetting<SpeechProvider>(plugin, NATIVE_SETTING_IDS.provider),
+    getSetting<AutoplayMode>(plugin, NATIVE_SETTING_IDS.autoplayMode),
+    getSetting<boolean>(plugin, LEGACY_SETTING_IDS.autoReadQuestion),
+    getSetting<boolean>(plugin, LEGACY_SETTING_IDS.autoReadAnswer),
     getSetting<SupportedLanguage>(plugin, NATIVE_SETTING_IDS.defaultLanguage),
-    getSetting<boolean>(plugin, NATIVE_SETTING_IDS.officialTtsDisabledConfirmed),
-    getSetting<boolean>(plugin, NATIVE_SETTING_IDS.autoReadQuestion),
-    getSetting<boolean>(plugin, NATIVE_SETTING_IDS.autoReadAnswer),
     getSetting<number>(plugin, NATIVE_SETTING_IDS.rate),
     getSetting<number>(plugin, NATIVE_SETTING_IDS.volumePercent),
     getSetting<boolean>(plugin, NATIVE_SETTING_IDS.fallbackToBrowser),
-    getSetting<string>(plugin, NATIVE_SETTING_IDS.azureRegion),
     getSetting<string>(plugin, NATIVE_SETTING_IDS.clozeZh),
     getSetting<string>(plugin, NATIVE_SETTING_IDS.clozeEn),
     getSetting<string>(plugin, NATIVE_SETTING_IDS.clozeJa),
@@ -169,14 +175,11 @@ export async function readNativeSettings(plugin: RNPlugin): Promise<Partial<Spee
     ...(uiLanguage ? { uiLanguage } : {}),
     ...(typeof enabled === 'boolean' ? { enabled } : {}),
     ...(provider ? { provider } : {}),
+    ...autoplayFlags(autoplayMode, legacyQuestion, legacyAnswer),
     ...(defaultLanguage ? { defaultLanguage } : {}),
-    ...(typeof officialTtsDisabledConfirmed === 'boolean' ? { officialTtsDisabledConfirmed } : {}),
-    ...(typeof autoReadQuestion === 'boolean' ? { autoReadQuestion } : {}),
-    ...(typeof autoReadAnswer === 'boolean' ? { autoReadAnswer } : {}),
     ...(typeof rate === 'number' ? { rate } : {}),
     ...(typeof volumePercent === 'number' ? { volume: volumePercent / 100 } : {}),
     ...(typeof fallbackToBrowser === 'boolean' ? { fallbackToBrowser } : {}),
-    ...(typeof azureRegion === 'string' ? { azureRegion } : {}),
     clozeWords: {
       zh: clozeZh || '什么',
       en: clozeEn || 'what',

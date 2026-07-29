@@ -48,8 +48,8 @@ const COPY = {
     key: 'Speech key',
     keyPlaceholder: 'Stored only on this device',
     region: 'Region',
-    regionMissing: 'Set the region in RemNote plugin settings.',
-    privacy: 'Your key stays in local RemNote storage and is never synced.',
+    regionPlaceholder: 'eastasia',
+    privacy: 'Your Speech Key stays in local RemNote storage. Region and voice choices are saved with this plugin.',
     voices: 'Language voices',
     voice: 'Voice',
     automatic: 'Automatic — best available voice',
@@ -76,8 +76,8 @@ const COPY = {
     key: 'Speech Key',
     keyPlaceholder: '仅保存在这台设备上',
     region: '区域',
-    regionMissing: '请在 RemNote 插件设置中填写 Region。',
-    privacy: 'Key 只保存在本机 RemNote storage，不会同步。',
+    regionPlaceholder: '例如：eastasia',
+    privacy: 'Speech Key 仅保存在本机 RemNote storage；Region 与声音选择保存在本插件设置中。',
     voices: '语言声音',
     voice: '声音',
     automatic: '自动选择最佳可用声音',
@@ -214,7 +214,16 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
             <div className="section-title section-title--inverse"><span>02</span><h2>{copy.credentials}</h2></div>
             <div className="credential-grid">
               <label><span>{copy.key}</span><input type="password" autoComplete="off" value={azureKey} onChange={(event) => setAzureKey(event.target.value)} placeholder={copy.keyPlaceholder} /></label>
-              <div className="read-only-field"><span>{copy.region}</span><strong>{settings.azureRegion || copy.regionMissing}</strong></div>
+              <label>
+                <span>{copy.region}</span>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  value={settings.azureRegion}
+                  onChange={(event) => setSettings({ ...settings, azureRegion: event.target.value })}
+                  placeholder={copy.regionPlaceholder}
+                />
+              </label>
             </div>
             <p className="privacy-note"><span aria-hidden="true">●</span>{copy.privacy}</p>
           </div>

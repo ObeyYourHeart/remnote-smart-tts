@@ -9,20 +9,20 @@ import type { SpeechStatus } from '../src/core/types';
 import './preview.css';
 
 // This in-memory RemNote mock powers browser-based visual QA only.
-const syncedStorage = new Map<string, unknown>([['card-speech-settings-v1', DEFAULT_SETTINGS]]);
+const syncedStorage = new Map<string, unknown>([[
+  'card-speech-settings-v1',
+  { ...DEFAULT_SETTINGS, azureRegion: 'eastasia' },
+]]);
 const localStorage = new Map<string, unknown>();
 const nativeSettings = new Map<string, unknown>([
   [NATIVE_SETTING_IDS.uiLanguage, 'en'],
   [NATIVE_SETTING_IDS.enabled, true],
   [NATIVE_SETTING_IDS.provider, 'azure'],
   [NATIVE_SETTING_IDS.defaultLanguage, 'zh'],
-  [NATIVE_SETTING_IDS.officialTtsDisabledConfirmed, true],
-  [NATIVE_SETTING_IDS.autoReadQuestion, true],
-  [NATIVE_SETTING_IDS.autoReadAnswer, true],
+  [NATIVE_SETTING_IDS.autoplayMode, 'both'],
   [NATIVE_SETTING_IDS.rate, 1],
   [NATIVE_SETTING_IDS.volumePercent, 100],
   [NATIVE_SETTING_IDS.fallbackToBrowser, true],
-  [NATIVE_SETTING_IDS.azureRegion, 'eastasia'],
   [NATIVE_SETTING_IDS.clozeZh, '什么'],
   [NATIVE_SETTING_IDS.clozeEn, 'what'],
   [NATIVE_SETTING_IDS.clozeJa, 'なに'],
