@@ -72,7 +72,7 @@ Choose **Autoplay mode** in **Settings → Plugins → Smart Flashcard TTS**. If
 
 ### Current scope
 
-Version 0.7 adds native Multi-Line/Set and ordered List-Answer speech. It reads direct card-item children in one synthesis request, preserves List order, and keeps Concept + Descriptor prompts self-contained in Chinese, English, and Japanese. RemNote's public Plugin SDK does not expose Multiple-Choice correctness or the active incremental List item, so the plugin does not guess these answers. Randomized Multiple-Choice correctness, exact incremental List prompts, full table rendering, image occlusion descriptions, LaTeX Clozes, and mobile autoplay require future SDK support or an explicit user-authored marker.
+Version 0.7 adds native Multi-Line/Set and ordered List-Answer speech. Version 0.7.1 also handles queue contexts that omit `cardId` or point to a direct child item instead of the Multi-Line parent. It reads direct card-item children in one synthesis request, preserves List order, and keeps Concept + Descriptor prompts self-contained in Chinese, English, and Japanese. RemNote's public Plugin SDK does not expose Multiple-Choice correctness or the active incremental List item, so the plugin does not guess these answers. Randomized Multiple-Choice correctness, exact incremental List prompts, full table rendering, image occlusion descriptions, LaTeX Clozes, and mobile autoplay require future SDK support or an explicit user-authored marker.
 
 ### Development
 
@@ -153,7 +153,7 @@ RemNote 自带 Queue Text to Speech，表格列也可以启用 TTS。Plugin SDK 
 
 ### 当前范围
 
-0.7 版加入原生 Multi-Line/Set 和有序 List-Answer 朗读：只读取当前父卡的直接 card-item 子项，List 保留顺序，并把整面答案放进一次语音合成请求；Concept + Descriptor 仍使用中英日完整语义模板。RemNote 公开 Plugin SDK 目前不提供 Multiple-Choice 正确选项及当前逐项 List 子题，因此插件不会猜测答案。随机多选正确项、精确的逐项 List 提问、完整表格渲染、图片遮挡描述、LaTeX Cloze 和移动端自动播放仍需未来 SDK 支持或用户显式标记。
+0.7 版加入原生 Multi-Line/Set 和有序 List-Answer 朗读；0.7.1 进一步兼容缺少 `cardId`，或指向直接答案子项而不是 Multi-Line 父卡的 Queue context。插件只读取当前父卡的直接 card-item 子项，List 保留顺序，并把整面答案放进一次语音合成请求；Concept + Descriptor 仍使用中英日完整语义模板。RemNote 公开 Plugin SDK 目前不提供 Multiple-Choice 正确选项及当前逐项 List 子题，因此插件不会猜测答案。随机多选正确项、精确的逐项 List 提问、完整表格渲染、图片遮挡描述、LaTeX Cloze 和移动端自动播放仍需未来 SDK 支持或用户显式标记。
 
 ### 本地开发
 

@@ -1,9 +1,9 @@
-import { RemType, type RNPlugin, type WidgetLocationContextDataMap, WidgetLocation } from '@remnote/plugin-sdk';
+import { RemType, type Card, type CardType, type Rem, type RNPlugin, type WidgetLocationContextDataMap, WidgetLocation } from '@remnote/plugin-sdk';
 import { buildConceptSpeech } from './concept';
 import { buildDescriptorSpeech, buildDescriptorSubject } from './descriptor';
 import { detectLanguage } from './language';
 import { piecesToPlainText, renderActiveCloze, richTextToPieces } from './richText';
-import { readStructuredCard } from './structuredCardReader';
+import { readStructuredCard, resolveStructuredCardRoot } from './structuredCardReader';
 import { buildStructuredAnswer } from './structuredCards';
 import type { CardSpeechPlan, SpeechSettings } from './types';
 
@@ -11,6 +11,16 @@ type FlashcardContext = WidgetLocationContextDataMap[WidgetLocation.FlashcardUnd
 
 async function readPlainText(plugin: RNPlugin, richText: Parameters<typeof richTextToPieces>[1]): Promise<string> {
   return piecesToPlainText(await richTextToPieces(plugin, richText));
+}
+
+async function readCardRem(card: Card | undefined): Promise<Rem | undefined> {
+  if (!card) return undefined;
+  try {
+    return await card.getRem();
+  } catch (error) {
+    console.warn('Could not resolve the Rem attached to the current card.', error);
+    return undefined;
+  }
 }
 
 /**
@@ -21,15 +31,22 @@ export async function buildCardSpeechPlan(
   context: FlashcardContext,
   settings: SpeechSettings,
 ): Promise<CardSpeechPlan | null> {
-  if (!context.cardId) return null;
-
-  const [card, rem] = await Promise.all([
-    plugin.card.findOne(context.cardId),
+  const [card, contextRem] = await Promise.all([
+    context.cardId ? plugin.card.findOne(context.cardId) : Promise.resolve(undefined),
     plugin.rem.findOne(context.remId),
   ]);
-  if (!card || !rem) return null;
+  if (!contextRem) return null;
 
-  const cardType = await card.getType();
+  const cardRem = await readCardRem(card);
+  const initialRem = cardRem ?? contextRem;
+  const structuredRoot = await resolveStructuredCardRoot(initialRem)
+    ?? (initialRem._id !== contextRem._id ? await resolveStructuredCardRoot(contextRem) : null);
+  const rem = structuredRoot ?? initialRem;
+  // `cardId` is optional in FlashcardUnder. Structured cards without it are
+  // still safe to read as forward cards because their question is the parent
+  // Rem and their answers are direct card-item children.
+  const cardType: CardType = card ? await card.getType() : 'forward';
+  const activeCardId = context.cardId ?? card?._id ?? `rem:${rem._id || context.remId}`;
 
   if (typeof cardType === 'object' && 'clozeId' in cardType) {
     const pieces = await richTextToPieces(plugin, rem.text);
@@ -42,7 +59,7 @@ export async function buildCardSpeechPlan(
     if (!rendered.questionText) return null;
 
     return {
-      cardId: context.cardId,
+      cardId: activeCardId,
       remId: context.remId,
       kind: 'cloze',
       question: {
@@ -97,7 +114,7 @@ export async function buildCardSpeechPlan(
 
     if (cardType === 'backward') {
       return {
-        cardId: context.cardId,
+        cardId: activeCardId,
         remId: context.remId,
         kind: `${kindPrefix}-backward`,
         question: { text: spokenItems, language: answerLanguage },
@@ -109,7 +126,7 @@ export async function buildCardSpeechPlan(
     }
 
     return {
-      cardId: context.cardId,
+      cardId: activeCardId,
       remId: context.remId,
       kind: `${kindPrefix}-forward`,
       question: { text: questionText, language: questionLanguage },
@@ -125,7 +142,7 @@ export async function buildCardSpeechPlan(
     if (cardType === 'backward') {
       const questionLanguage = detectLanguage(backText, conceptLanguage);
       return {
-        cardId: context.cardId,
+        cardId: activeCardId,
         remId: context.remId,
         kind: 'concept-backward',
         question: { text: backText, language: questionLanguage },
@@ -134,7 +151,7 @@ export async function buildCardSpeechPlan(
     }
 
     return {
-      cardId: context.cardId,
+      cardId: activeCardId,
       remId: context.remId,
       kind: 'concept-forward',
       question: { text: conceptSpeech.question, language: conceptLanguage },
@@ -154,7 +171,7 @@ export async function buildCardSpeechPlan(
         const descriptorQuestion = [frontText, backText].filter(Boolean).join('：');
         const questionLanguage = detectLanguage(descriptorQuestion, settings.defaultLanguage);
         return {
-          cardId: context.cardId,
+          cardId: activeCardId,
           remId: context.remId,
           kind: 'descriptor-backward',
           question: { text: descriptorQuestion, language: questionLanguage },
@@ -173,7 +190,7 @@ export async function buildCardSpeechPlan(
         descriptorLanguage,
       );
       return {
-        cardId: context.cardId,
+        cardId: activeCardId,
         remId: context.remId,
         kind: 'descriptor-forward',
         question: { text: descriptorSpeech.question, language: descriptorLanguage },
@@ -186,7 +203,7 @@ export async function buildCardSpeechPlan(
     if (!backText || !frontText) return null;
     const questionLanguage = detectLanguage(backText, settings.defaultLanguage);
     return {
-      cardId: context.cardId,
+      cardId: activeCardId,
       remId: context.remId,
       kind: 'backward',
       question: { text: backText, language: questionLanguage },
@@ -197,7 +214,7 @@ export async function buildCardSpeechPlan(
   if (!frontText || !backText) return null;
   const questionLanguage = detectLanguage(frontText, settings.defaultLanguage);
   return {
-    cardId: context.cardId,
+    cardId: activeCardId,
     remId: context.remId,
     kind: 'forward',
     question: { text: frontText, language: questionLanguage },

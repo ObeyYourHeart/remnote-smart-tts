@@ -31,3 +31,12 @@
 - Version 0.7.0 passes type checking and all 29 tests. The first production build attempt was blocked by sandbox `spawnSync cmd.exe EPERM` inside RemNote's validation script; rerun the unchanged build with Windows execution permission.
 - Production build and RemNote manifest validation passed; `PluginZip.zip` was regenerated.
 - Local DEV server PID 37908 serves `Smart Flashcard TTS [DEV]` version 0.7.0 at port 8081.
+- 2026-08-01：用户实测 Multi-Line 没有出现播放控件；开始修复可选 `cardId` 和子项上下文导致的空计划。
+
+## 0.7.1 Multi-Line runtime repair
+
+- Real Chrome queue inspection confirmed that Single-Line and Cloze cards render the Smart Flashcard TTS widget, so the DEV connection, widget registration, and base styling are healthy.
+- Fixed structured-card planning when `FlashcardUnder.cardId` is absent.
+- Fixed Multi-Line resolution when RemNote identifies a direct child card item instead of its Multi-Line parent.
+- Added two regression tests. Type checking, all 31 tests, the RemNote production build, and the localhost DEV manifest passed at version 0.7.1.
+- RemNote/Chrome DOM calls timed out repeatedly before a final post-HMR Multi-Line screenshot could be captured. The fix is verified at the planner/build/runtime-manifest layers; the user should reload the queue once for the final live visual check.

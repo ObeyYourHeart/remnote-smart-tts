@@ -20,9 +20,19 @@ function makeChild(text: string, isListItem: boolean): Rem {
   } as unknown as Rem;
 }
 
-function makePlugin(rem: Rem, cardType: 'forward' | 'backward' = 'forward'): RNPlugin {
+function makePlugin(
+  rem: Rem,
+  cardType: 'forward' | 'backward' = 'forward',
+  cardRem: Rem = rem,
+): RNPlugin {
   return {
-    card: { findOne: async () => ({ getType: async () => cardType }) },
+    card: {
+      findOne: async () => ({
+        _id: 'resolved-card',
+        getType: async () => cardType,
+        getRem: async () => cardRem,
+      }),
+    },
     rem: { findOne: async () => rem },
   } as unknown as RNPlugin;
 }
@@ -98,6 +108,7 @@ test('does not invent a structure when the Multi-Line marker is absent', async (
     text: ['Question'],
     backText: ['Answer'],
     hasPowerup: async () => false,
+    getParentRem: async () => undefined,
   } as unknown as Rem;
 
   const buildCardSpeechPlan = await loadCardPlanner();
@@ -109,4 +120,59 @@ test('does not invent a structure when the Multi-Line marker is absent', async (
 
   assert.equal(plan?.kind, 'forward');
   assert.equal(plan?.answer.text, 'Answer');
+});
+
+test('builds a Multi-Line plan when FlashcardUnder omits cardId', async () => {
+  const parentRem = {
+    _id: 'parent-no-card-id',
+    type: 0,
+    text: ['风险因素'],
+    backText: [],
+    hasPowerup: async () => true,
+    getChildrenRem: async () => [makeChild('市场风险', false), makeChild('信用风险', false)],
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(parentRem),
+    { remId: 'parent-no-card-id', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.cardId, 'rem:parent-no-card-id');
+  assert.equal(plan?.kind, 'multi-line-forward');
+  assert.equal(plan?.answer.text, '答案包括：市场风险；信用风险。');
+});
+
+test('climbs from a queue child Rem to its Multi-Line parent', async () => {
+  const parentRem = {
+    _id: 'multi-line-parent',
+    type: 0,
+    text: ['市销率的缺陷'],
+    backText: [],
+    hasPowerup: async () => true,
+    getChildrenRem: async () => [
+      makeChild('忽视利润水平', false),
+      makeChild('易受季节波动影响', false),
+    ],
+  } as unknown as Rem;
+  const queueChildRem = {
+    _id: 'queue-child',
+    type: 0,
+    text: ['忽视利润水平'],
+    backText: [],
+    hasPowerup: async () => false,
+    getParentRem: async () => parentRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(queueChildRem, 'forward', queueChildRem),
+    { remId: 'queue-child', cardId: 'child-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'multi-line-forward');
+  assert.equal(plan?.question.text, '市销率的缺陷');
+  assert.equal(plan?.answer.text, '答案包括：忽视利润水平；易受季节波动影响。');
 });

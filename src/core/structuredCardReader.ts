@@ -7,6 +7,27 @@ export interface StructuredCardData {
   items: string[];
 }
 
+async function hasMultiLinePowerup(rem: Rem): Promise<boolean> {
+  return rem.hasPowerup(BuiltInPowerupCodes.MultiLineCard);
+}
+
+/**
+ * Queue contexts for structured cards may identify either the parent card Rem
+ * or one of its direct card-item children. Normalize both forms to the parent.
+ */
+export async function resolveStructuredCardRoot(rem: Rem): Promise<Rem | null> {
+  try {
+    if (await hasMultiLinePowerup(rem)) return rem;
+
+    const parentRem = await rem.getParentRem();
+    if (parentRem && await hasMultiLinePowerup(parentRem)) return parentRem;
+    return null;
+  } catch (error) {
+    console.warn('Could not resolve the structured flashcard parent.', error);
+    return null;
+  }
+}
+
 /**
  * Reads the direct card-item children used by native Multi-Line and
  * List-Answer cards. Nested descendants are intentionally excluded because
@@ -17,7 +38,7 @@ export async function readStructuredCard(
   rem: Rem,
 ): Promise<StructuredCardData | null> {
   try {
-    if (!(await rem.hasPowerup(BuiltInPowerupCodes.MultiLineCard))) return null;
+    if (!(await hasMultiLinePowerup(rem))) return null;
 
     const children = await rem.getChildrenRem();
     const childData = await Promise.all(

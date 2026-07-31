@@ -61,6 +61,14 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 
 - Commit verified changes without pushing GitHub.
 
+### Phase 7: Real RemNote Multi-Line runtime repair
+
+**Status:** complete
+
+- Resolve a Multi-Line parent when the queue context points at a child card item.
+- Support FlashcardUnder contexts whose optional `cardId` is absent.
+- Add regression tests, bump the patch version, rebuild DEV, and commit locally.
+
 ## Constraints
 
 - Do not control the user's Chrome unless explicitly requested.
@@ -81,3 +89,6 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 | Structure integration test hit `ReferenceError: self is not defined` | 1 | Define a test-only browser `self` global before dynamically importing the RemNote SDK-dependent planner. |
 | RemNote validator build hit `spawnSync cmd.exe EPERM` | 1 | Re-run the unchanged production build with the required Windows execution permission. |
 | New planning sections initially replaced earlier project history | 1 | Restore the tracked history and append the 0.7 records under separate sections before committing. |
+| Real Multi-Line card rendered no playback control | 1 | The 0.7 planner incorrectly required optional `cardId` and assumed `context.remId` was always the Multi-Line parent; repair both assumptions. |
+| Existing RemNote tabs were intermittently slow to attach | 1 | Opened one temporary tab in the same signed-in Chrome session and limited inspection to the current RemNote queue. |
+| RemNote DOM inspection timed out repeatedly after HMR | 2 | Verified the runtime path with targeted regression tests, build validation, and the DEV manifest; leave the final Multi-Line visual confirmation to a clean queue reload. |

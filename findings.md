@@ -54,3 +54,11 @@
 - Treat card-item children that are also `isListItem()` as ordered List-Answer items; preserve order with localized ordinal prompts.
 - Treat the remaining card-item children as a Set/Multi-Line answer and read them without implying order.
 - Multiple-Choice remains blocked on reliable subtype/correct-answer metadata. Do not guess that the first child is correct.
+- Real queue feedback showed no widget on a Multi-Line card. `FlashcardUnder.cardId` is optional, but 0.7 returned `null` whenever it was absent. Structured queue items may also expose a child Rem, so detection must resolve the card Rem and then climb one level to the Multi-Line parent.
+
+## Real queue evidence for 0.7.1
+
+- The local DEV plugin visibly rendered its compact play/settings widget on a Single-Line card and on a Cloze card in the user's current Chrome RemNote queue.
+- This rules out a general localhost connection, widget registration, or CSS failure for the missing Multi-Line control.
+- The remaining failure matched two planner assumptions: `cardId` was treated as required even though the SDK marks it optional, and only the exact context Rem was checked for the `MultiLineCard` powerup.
+- The repaired resolver checks `card.getRem()`, falls back to the context Rem, and accepts either the current Rem or its parent as the Multi-Line root.
