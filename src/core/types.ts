@@ -38,6 +38,7 @@ export type SupportedCardKind =
   | 'backward'
   | 'concept-forward'
   | 'concept-backward'
+  | 'descriptor-forward'
   | 'descriptor-backward'
   | 'cloze';
 

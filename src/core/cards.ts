@@ -1,5 +1,6 @@
 import { RemType, type RNPlugin, type WidgetLocationContextDataMap, WidgetLocation } from '@remnote/plugin-sdk';
 import { buildConceptSpeech } from './concept';
+import { buildDescriptorSpeech } from './descriptor';
 import { detectLanguage } from './language';
 import { piecesToPlainText, renderActiveCloze, richTextToPieces } from './richText';
 import type { CardSpeechPlan, SpeechSettings } from './types';
@@ -81,24 +82,47 @@ export async function buildCardSpeechPlan(
     };
   }
 
-  if (cardType === 'backward') {
-    // Descriptor reverse cards test the parent Concept, not the Descriptor label itself.
-    if (rem.type === RemType.DESCRIPTOR) {
-      const parentRem = await rem.getParentRem();
-      const parentText = await readPlainText(plugin, parentRem?.text);
-      const descriptorQuestion = [frontText, backText].filter(Boolean).join('：');
-      if (!descriptorQuestion || !parentText) return null;
+  if (rem.type === RemType.DESCRIPTOR) {
+    const parentRem = await rem.getParentRem();
+    const parentText = await readPlainText(plugin, parentRem?.text);
+    // A normal Concept + Descriptor pair gets the semantic speech template.
+    // Orphaned or unusual Descriptors safely fall through to ordinary A/B logic.
+    if (parentRem?.type === RemType.CONCEPT && parentText && frontText && backText) {
+      if (cardType === 'backward') {
+        // Reverse Descriptor cards ask for the parent Concept represented by the
+        // Descriptor and its value.
+        const descriptorQuestion = [frontText, backText].filter(Boolean).join('：');
+        const questionLanguage = detectLanguage(descriptorQuestion, settings.defaultLanguage);
+        return {
+          cardId: context.cardId,
+          remId: context.remId,
+          kind: 'descriptor-backward',
+          question: { text: descriptorQuestion, language: questionLanguage },
+          answer: { text: parentText, language: detectLanguage(parentText, questionLanguage) },
+        };
+      }
 
-      const questionLanguage = detectLanguage(descriptorQuestion, settings.defaultLanguage);
+      const descriptorLanguage = detectLanguage(
+        `${parentText} ${frontText}`,
+        settings.defaultLanguage,
+      );
+      const descriptorSpeech = buildDescriptorSpeech(
+        parentText,
+        frontText,
+        backText,
+        descriptorLanguage,
+      );
       return {
         cardId: context.cardId,
         remId: context.remId,
-        kind: 'descriptor-backward',
-        question: { text: descriptorQuestion, language: questionLanguage },
-        answer: { text: parentText, language: detectLanguage(parentText, questionLanguage) },
+        kind: 'descriptor-forward',
+        question: { text: descriptorSpeech.question, language: descriptorLanguage },
+        answer: { text: descriptorSpeech.answer, language: descriptorLanguage },
       };
     }
+  }
 
+  if (cardType === 'backward') {
     if (!backText || !frontText) return null;
     const questionLanguage = detectLanguage(backText, settings.defaultLanguage);
     return {
