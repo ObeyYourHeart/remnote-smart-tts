@@ -48,3 +48,10 @@
 - Fixed the parent-overrides-Descriptor regression, resolved the active Rem through `Card.remId`, and added a non-blank unsupported-card state.
 - Version 0.7.2 passes type checking, all 32 tests, RemNote manifest validation, and the production build.
 - Real Chrome verification now shows `朗读当前卡片面` and `高级声音设置` on the user's `市销率 / 算法` queue card.
+
+## 0.7.3 nested Descriptor Multi-Line
+
+- Inspected the user's exact `市销率 / 缺陷` queue URL and reproduced the disabled unsupported-card state.
+- Added unmarked Descriptor Multi-Line detection and confirmed the live control became enabled on the same card.
+- Added per-item semantic speech segments with one-request Azure SSML pauses; type checking and all 34 tests pass.
+- RemNote manifest validation and the production build pass at version 0.7.3; `PluginZip.zip` was regenerated.

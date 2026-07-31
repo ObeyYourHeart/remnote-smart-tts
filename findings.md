@@ -72,3 +72,10 @@
 - Development and production are deliberately separate plugin identities: Webpack rewrites localhost to `card-speech-studio-dev` / `Smart Flashcard TTS [DEV]`, while the GitHub-installed plugin remains `card-speech-studio`. RemNote showing production 0.3.0 does not describe the localhost DEV build.
 - Localhost now serves DEV version 0.7.2 and compiled the card planner hot update successfully.
 - A fresh same-account Chrome queue tab showed the live `Smart Flashcard TTS` iframe buttons on the exact `市销率 / 算法 / ?` card after the 0.7.2 hot update.
+
+## Live nested Descriptor Multi-Line card
+
+- `eUpbXhkHXNHE2srjT` initially loaded the DEV widget but showed the disabled `暂时无法识别这张卡片` control for `市销率 / 缺陷 / 3`.
+- RemNote exposes this as a semantic Descriptor with an empty back side and three direct card-item children, without the parent marker assumed by the previous reader.
+- After allowing unmarked semantic cards to use direct `isCardItem()` children, the same live page changed to the enabled `朗读当前卡片面` control.
+- The user requested each answer item to be spoken separately. Version 0.7.3 now supplies semantic speech segments; Azure uses one SSML request with sentence elements and 220 ms breaks, while browser speech uses separate utterances.

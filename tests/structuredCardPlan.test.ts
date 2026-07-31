@@ -104,6 +104,37 @@ test('keeps the parent Concept in a structured Descriptor prompt', async () => {
   assert.equal(plan?.answer.text, '市盈率的用途包括：公司估值；同业比较。');
 });
 
+test('reads an unmarked Descriptor with direct Multi-Line answer items', async () => {
+  const parentRem = { type: 1, text: ['市销率'] } as unknown as Rem;
+  const rem = {
+    _id: 'descriptor-defects',
+    type: 2,
+    text: ['缺陷'],
+    backText: [],
+    hasPowerup: async () => false,
+    getParentRem: async () => parentRem,
+    getChildrenRem: async () => [
+      makeChild('忽视利润水平，只看收入', false),
+      makeChild('易受会计政策和季节性波动影响', false),
+      makeChild('不考虑资本结构和负债水平', false),
+    ],
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(rem),
+    { remId: 'descriptor-defects', cardId: 'defects-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'multi-line-forward');
+  assert.equal(plan?.question.text, '市销率的缺陷是什么？');
+  assert.equal(
+    plan?.answer.text,
+    '市销率的缺陷包括：忽视利润水平，只看收入；易受会计政策和季节性波动影响；不考虑资本结构和负债水平。',
+  );
+});
+
 test('does not invent a structure when the Multi-Line marker is absent', async () => {
   const rem = {
     type: 0,

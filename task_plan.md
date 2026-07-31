@@ -77,6 +77,14 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 - Capture the real Multi-Line and Descriptor contexts instead of inferring them from SDK types.
 - Repair empty-plan behavior, add regressions and visible diagnostics, bump the version, build, verify in Chrome, and commit locally.
 
+### Phase 9: Live nested Descriptor Multi-Line card
+
+**Status:** complete
+
+- Inspect `eUpbXhkHXNHE2srjT` in the user's current Chrome session without grading or editing it.
+- Determine the actual Widget state and the Rem/Card relationship for the nested `市销率 / 缺陷` card.
+- Implement the smallest reliable fallback, add regression coverage, verify in the same card, and commit locally.
+
 ## Constraints
 
 - Do not control the user's Chrome unless explicitly requested.
@@ -104,3 +112,5 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 | Node test workers were blocked with `spawn EPERM` in the sandbox | 1 | Re-run the unchanged test command with the existing approved Windows permission. |
 | Two new structured-plan tests initially failed | 1 | Make the resolved Card Rem authoritative over the broader widget context and complete the child-card fixture with `isCardItem()`. |
 | Post-HMR Chrome snapshot timed out and reset browser control | 1 | Use one isolated same-account RemNote tab for a final lightweight check; do not retry the claimed page snapshot. |
+| Clicking Show Answer timed out after the card became supported | 1 | Do not repeat the click; reconnect once and inspect the resulting state read-only. |
+| Reconnected answer-side snapshot also timed out | 2 | Stop browser retries; retain the confirmed enabled question-side control and ask the user to audibly verify the new answer segmentation after the build. |

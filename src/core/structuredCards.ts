@@ -27,6 +27,40 @@ function formatOrdinal(index: number, language: SupportedLanguage): string {
   return CHINESE_ORDINALS[index] ?? `第${index + 1}项`;
 }
 
+function finishSentence(text: string, language: SupportedLanguage): string {
+  const cleanText = trimEndingSeparator(text);
+  return `${cleanText}${language === 'en' ? '.' : '。'}`;
+}
+
+/**
+ * Creates one introduction plus one independently spoken segment per answer
+ * item. Azure keeps these in one SSML request, so the pauses are clear without
+ * adding a network delay between items.
+ */
+export function buildStructuredAnswerSegments(
+  subject: string | undefined,
+  items: string[],
+  kind: StructuredCardKind,
+  language: SupportedLanguage,
+): string[] {
+  const cleanItems = items.map(trimEndingSeparator).filter(Boolean);
+  if (cleanItems.length === 0) return [];
+
+  const introduction = language === 'en'
+    ? `${subject || 'The answer'} includes the following.`
+    : language === 'ja'
+      ? `${subject || '答え'}には次の内容が含まれます。`
+      : `${subject || '答案'}包括以下内容。`;
+
+  const itemSegments = cleanItems.map((item, index) => {
+    if (kind !== 'list-answer') return finishSentence(item, language);
+    const separator = language === 'en' ? ', ' : '，';
+    return finishSentence(`${formatOrdinal(index, language)}${separator}${item}`, language);
+  });
+
+  return [introduction, ...itemSegments];
+}
+
 /**
  * Builds one natural utterance for all direct child answers. Sending the full
  * answer in one synthesis request avoids a network delay between list items.

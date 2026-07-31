@@ -4,7 +4,7 @@ import { buildDescriptorSpeech, buildDescriptorSubject } from './descriptor';
 import { detectLanguage } from './language';
 import { piecesToPlainText, renderActiveCloze, richTextToPieces } from './richText';
 import { readStructuredCard, resolveStructuredCardRoot } from './structuredCardReader';
-import { buildStructuredAnswer } from './structuredCards';
+import { buildStructuredAnswer, buildStructuredAnswerSegments } from './structuredCards';
 import type { CardSpeechPlan, SpeechSettings } from './types';
 
 type FlashcardContext = WidgetLocationContextDataMap[WidgetLocation.FlashcardUnder];
@@ -84,7 +84,9 @@ export async function buildCardSpeechPlan(
   const frontText = await readPlainText(plugin, rem.text);
   const backText = await readPlainText(plugin, rem.backText);
 
-  const structuredCard = await readStructuredCard(plugin, rem);
+  const semanticCardWithoutBackText =
+    (rem.type === RemType.CONCEPT || rem.type === RemType.DESCRIPTOR) && !backText;
+  const structuredCard = await readStructuredCard(plugin, rem, semanticCardWithoutBackText);
   if (structuredCard && frontText) {
     let questionText = frontText;
     let subject: string | undefined;
@@ -118,6 +120,12 @@ export async function buildCardSpeechPlan(
       structuredCard.kind,
       answerLanguage,
     );
+    const spokenSegments = buildStructuredAnswerSegments(
+      cardType === 'backward' ? undefined : subject,
+      structuredCard.items,
+      structuredCard.kind,
+      answerLanguage,
+    );
     const kindPrefix = structuredCard.kind === 'list-answer' ? 'list-answer' : 'multi-line';
 
     if (cardType === 'backward') {
@@ -125,7 +133,7 @@ export async function buildCardSpeechPlan(
         cardId: activeCardId,
         remId: context.remId,
         kind: `${kindPrefix}-backward`,
-        question: { text: spokenItems, language: answerLanguage },
+        question: { text: spokenItems, language: answerLanguage, segments: spokenSegments },
         answer: {
           text: backwardAnswer,
           language: detectLanguage(backwardAnswer, questionLanguage),
@@ -138,7 +146,7 @@ export async function buildCardSpeechPlan(
       remId: context.remId,
       kind: `${kindPrefix}-forward`,
       question: { text: questionText, language: questionLanguage },
-      answer: { text: spokenItems, language: answerLanguage },
+      answer: { text: spokenItems, language: answerLanguage, segments: spokenSegments },
     };
   }
 

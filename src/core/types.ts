@@ -31,6 +31,8 @@ export interface SpeechSettings {
 export interface SpeechContent {
   text: string;
   language: SupportedLanguage;
+  /** Optional semantic units that should be spoken with a clear boundary. */
+  segments?: string[];
 }
 
 export type SupportedCardKind =

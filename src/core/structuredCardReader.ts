@@ -1,4 +1,4 @@
-import { BuiltInPowerupCodes, type Rem, type RNPlugin } from '@remnote/plugin-sdk';
+import { BuiltInPowerupCodes, RemType, type Rem, type RNPlugin } from '@remnote/plugin-sdk';
 import { piecesToPlainText, richTextToPieces } from './richText';
 import type { StructuredCardKind } from './structuredCards';
 
@@ -18,6 +18,11 @@ async function hasMultiLinePowerup(rem: Rem): Promise<boolean> {
 export async function resolveStructuredCardRoot(rem: Rem): Promise<Rem | null> {
   try {
     if (await hasMultiLinePowerup(rem)) return rem;
+
+    // Concept and Descriptor Rems are meaningful cards in their own right.
+    // Never replace one with its parent merely because it is also displayed as
+    // a nested item in a Multi-Line layout.
+    if (rem.type === RemType.CONCEPT || rem.type === RemType.DESCRIPTOR) return null;
 
     // A normal Concept/Descriptor card can live below a parent that also owns
     // Multi-Line cards. If this Rem already has its own answer, keep it as the
@@ -42,9 +47,10 @@ export async function resolveStructuredCardRoot(rem: Rem): Promise<Rem | null> {
 export async function readStructuredCard(
   plugin: RNPlugin,
   rem: Rem,
+  allowUnmarked = false,
 ): Promise<StructuredCardData | null> {
   try {
-    if (!(await hasMultiLinePowerup(rem))) return null;
+    if (!allowUnmarked && !(await hasMultiLinePowerup(rem))) return null;
 
     const children = await rem.getChildrenRem();
     const childData = await Promise.all(
@@ -60,6 +66,9 @@ export async function readStructuredCard(
     const cardItems = childData.filter(
       (item): item is { text: string; isListItem: boolean } => item !== null,
     );
+    // `isCardItem()` is the actual child-level SDK marker. Some native
+    // Descriptor Multi-Line cards expose these children without reporting the
+    // parent MultiLineCard powerup, so do not require both signals.
     if (cardItems.length === 0) return null;
 
     return {

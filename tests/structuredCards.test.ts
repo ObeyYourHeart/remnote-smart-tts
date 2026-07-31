@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildStructuredAnswer } from '../src/core/structuredCards';
+import { buildStructuredAnswer, buildStructuredAnswerSegments } from '../src/core/structuredCards';
 
 test('reads Chinese Multi-Line children as an unordered set', () => {
   assert.equal(
@@ -34,5 +34,22 @@ test('drops blank children instead of speaking empty items', () => {
   assert.equal(
     buildStructuredAnswer(undefined, ['first', ' ', 'third'], 'multi-line', 'en'),
     'The answer includes: first; third.',
+  );
+});
+
+test('creates one independently spoken segment per Multi-Line answer item', () => {
+  assert.deepEqual(
+    buildStructuredAnswerSegments(
+      '市销率的缺陷',
+      ['忽视利润水平，只看收入', '易受季节性波动影响', '不考虑资本结构'],
+      'multi-line',
+      'zh',
+    ),
+    [
+      '市销率的缺陷包括以下内容。',
+      '忽视利润水平，只看收入。',
+      '易受季节性波动影响。',
+      '不考虑资本结构。',
+    ],
   );
 });

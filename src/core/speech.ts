@@ -197,7 +197,12 @@ export class SpeechController {
     const voices = await waitForBrowserVoices();
     const voice = chooseBrowserVoice(voices, content.language, settings.browserVoices[content.language]);
 
-    for (const chunk of splitSpeechText(content.text)) {
+    const semanticSegments = content.segments?.map((segment) => segment.trim()).filter(Boolean);
+    const chunks = semanticSegments?.length
+      ? semanticSegments.flatMap((segment) => splitSpeechText(segment))
+      : splitSpeechText(content.text);
+
+    for (const chunk of chunks) {
       if (generation !== this.generation) return;
       await new Promise<void>((resolve, reject) => {
         const utterance = new SpeechSynthesisUtterance(chunk);
@@ -230,7 +235,12 @@ export class SpeechController {
     speechConfig.speechSynthesisVoiceName = settings.azureVoices[content.language];
     speechConfig.speechSynthesisOutputFormat = SpeechSDK.SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3;
 
-    for (const chunk of splitSpeechText(content.text, 450)) {
+    const semanticSegments = content.segments?.map((segment) => segment.trim()).filter(Boolean);
+    const azurePayloads = semanticSegments?.length
+      ? [{ segments: semanticSegments }]
+      : splitSpeechText(content.text, 450).map((text) => ({ text }));
+
+    for (const payload of azurePayloads) {
       if (generation !== this.generation) return;
       // A single explicit SDK player avoids both double playback and a second
       // independent audio element, which previously caused echo. We still
@@ -276,10 +286,19 @@ export class SpeechController {
       this.activeSynthesizer = synthesizer;
       this.activePlayer = player;
 
+      const spokenBody = 'segments' in payload
+        ? payload.segments
+          .map((segment) => [
+            '<s>',
+            `<prosody rate="${rateAsSsmlPercent(settings.rate)}">${escapeXml(segment)}</prosody>`,
+            '</s>',
+          ].join(''))
+          .join('<break time="220ms"/>')
+        : `<prosody rate="${rateAsSsmlPercent(settings.rate)}">${escapeXml(payload.text)}</prosody>`;
       const ssml = [
         `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${LOCALES[content.language]}">`,
         `<voice name="${escapeXml(settings.azureVoices[content.language])}">`,
-        `<prosody rate="${rateAsSsmlPercent(settings.rate)}">${escapeXml(chunk)}</prosody>`,
+        spokenBody,
         '</voice>',
         '</speak>',
       ].join('');
