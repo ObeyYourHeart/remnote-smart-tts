@@ -14,11 +14,11 @@ test('allows autoplay without an unavailable RemNote TTS interlock', () => {
   assert.equal(settings.autoReadAnswer, true);
 });
 
-test('enables question autoplay by default', () => {
+test('enables question and answer autoplay by default', () => {
   const settings = normalizeSettings({});
 
   assert.equal(settings.autoReadQuestion, true);
-  assert.equal(settings.autoReadAnswer, false);
+  assert.equal(settings.autoReadAnswer, true);
 });
 
 test('normalizes the bilingual interface language', () => {

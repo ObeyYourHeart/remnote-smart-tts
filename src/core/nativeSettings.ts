@@ -65,7 +65,7 @@ export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
     id: NATIVE_SETTING_IDS.autoplayMode,
     title: 'Autoplay mode / 自动朗读模式',
     description: 'Choose which card sides this plugin reads automatically. RemNote does not expose a supported switch for controlling its own TTS. / 选择本插件自动朗读的卡片面；RemNote 暂未提供控制官方 TTS 的插件接口。',
-    defaultValue: 'question',
+    defaultValue: 'both',
     options: [
       { key: 'off', label: 'Off / 关闭', value: 'off' },
       { key: 'question', label: 'Question only / 仅问题面', value: 'question' },

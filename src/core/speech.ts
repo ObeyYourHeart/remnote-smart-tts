@@ -11,20 +11,34 @@ const LOCALES: Record<SupportedLanguage, string> = {
   ja: 'ja-JP',
 };
 
-function splitSpeechText(text: string, maximumLength = 220): string[] {
+export function splitSpeechText(text: string, maximumLength = 220): string[] {
   const sentences = text
     .split(/(?<=[。！？.!?；;])\s*/u)
     .map((sentence) => sentence.trim())
     .filter(Boolean);
   const chunks: string[] = [];
+  let currentChunk = '';
+
+  const flushCurrentChunk = () => {
+    if (!currentChunk) return;
+    chunks.push(currentChunk);
+    currentChunk = '';
+  };
 
   for (const sentence of sentences.length > 0 ? sentences : [text]) {
     if (sentence.length <= maximumLength) {
-      chunks.push(sentence);
+      const combined = currentChunk ? `${currentChunk} ${sentence}` : sentence;
+      if (combined.length <= maximumLength) {
+        currentChunk = combined;
+      } else {
+        flushCurrentChunk();
+        currentChunk = sentence;
+      }
       continue;
     }
 
     // Long sentences are cut at punctuation or whitespace before using a hard boundary.
+    flushCurrentChunk();
     let remaining = sentence;
     while (remaining.length > maximumLength) {
       const candidate = remaining.slice(0, maximumLength);
@@ -37,9 +51,10 @@ function splitSpeechText(text: string, maximumLength = 220): string[] {
       chunks.push(remaining.slice(0, safeIndex).trim());
       remaining = remaining.slice(safeIndex).trim();
     }
-    if (remaining) chunks.push(remaining);
+    if (remaining) currentChunk = remaining;
   }
 
+  flushCurrentChunk();
   return chunks;
 }
 

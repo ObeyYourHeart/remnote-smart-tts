@@ -114,13 +114,13 @@ function FlashcardSpeechWidget() {
     autoSpokenSignatureRef.current = signature;
     if (!shouldAutoRead) return;
 
-    // Let RemNote finish mounting the card, fonts, and Cloze layout before audio
-    // starts. A card change or effect rerun cancels the pending playback.
+    // One short settling window is enough for RemNote to commit the card and
+    // Cloze layout without adding a noticeable pause before speech.
     if (autoSpeakTimerRef.current !== null) window.clearTimeout(autoSpeakTimerRef.current);
     autoSpeakTimerRef.current = window.setTimeout(() => {
       autoSpeakTimerRef.current = null;
       void speakCurrentSide();
-    }, 1200);
+    }, 180);
 
     return () => {
       if (autoSpeakTimerRef.current !== null) window.clearTimeout(autoSpeakTimerRef.current);

@@ -9,7 +9,7 @@ export const DEFAULT_SETTINGS: SpeechSettings = {
   uiLanguage: 'en',
   enabled: true,
   autoReadQuestion: true,
-  autoReadAnswer: false,
+  autoReadAnswer: true,
   provider: 'browser',
   fallbackToBrowser: true,
   defaultLanguage: 'zh',
