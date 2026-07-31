@@ -82,7 +82,9 @@ function FlashcardSpeechWidget() {
     void refresh(true);
 
     const listenerKey = `smart-flashcard-tts-${Date.now()}-${Math.random()}`;
-    const handleReveal = () => window.setTimeout(() => void refresh(), 40);
+    // RemNote emits RevealAnswer just before the revealed card context settles.
+    // Read it again shortly afterwards so answer autoplay receives the answer side.
+    const handleReveal = () => window.setTimeout(() => void refresh(true), 120);
     const handleQueueComplete = () => controller.cancel();
     const handleSettingsChange = () => void refresh(true);
 
@@ -111,7 +113,6 @@ function FlashcardSpeechWidget() {
     if (autoSpokenSignatureRef.current === signature) return;
 
     const shouldAutoRead = context.revealed ? settings.autoReadAnswer : settings.autoReadQuestion;
-    autoSpokenSignatureRef.current = signature;
     if (!shouldAutoRead) return;
 
     // One short settling window is enough for RemNote to commit the card and
@@ -119,6 +120,7 @@ function FlashcardSpeechWidget() {
     if (autoSpeakTimerRef.current !== null) window.clearTimeout(autoSpeakTimerRef.current);
     autoSpeakTimerRef.current = window.setTimeout(() => {
       autoSpeakTimerRef.current = null;
+      autoSpokenSignatureRef.current = signature;
       void speakCurrentSide();
     }, 180);
 

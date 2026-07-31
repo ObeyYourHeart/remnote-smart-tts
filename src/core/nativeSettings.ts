@@ -12,7 +12,9 @@ export const NATIVE_SETTING_IDS = {
   enabled: 'smart-tts-enabled',
   provider: 'smart-tts-provider',
   defaultLanguage: 'smart-tts-default-language',
-  autoplayMode: 'smart-tts-autoplay-mode',
+  // v2 intentionally resets the old question-only default. RemNote settings
+  // cannot be updated programmatically, so a new id is the safe migration path.
+  autoplayMode: 'smart-tts-autoplay-mode-v2',
   replaceRemNoteTtsControls: 'smart-tts-replace-remnote-controls',
   rate: 'smart-tts-rate',
   volumePercent: 'smart-tts-volume-percent',
