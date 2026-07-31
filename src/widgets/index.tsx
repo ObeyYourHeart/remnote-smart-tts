@@ -2,7 +2,26 @@ import { declareIndexPlugin, type ReactRNPlugin, WidgetLocation } from '@remnote
 import { NATIVE_SETTING_IDS, registerNativeSettings } from '../core/nativeSettings';
 
 const OFFICIAL_TTS_CSS_ID = 'smart-tts-replace-remnote-controls';
-const OFFICIAL_TTS_CONTROLS_CSS = `
+const QUEUE_CONTROL_POSITION_CSS = `
+  /* FlashcardUnder is rendered inside the scrolling card body. Visually anchor
+     our compact replacement control to the lower edge of that body instead. */
+  .rn-queue__content div:has(> div > iframe.rn-plugin-root[src*="widgetName=flashcard-speech"]) {
+    position: absolute !important;
+    left: 50% !important;
+    bottom: 10px !important;
+    z-index: 20 !important;
+    width: 82px !important;
+    height: 38px !important;
+    transform: translateX(-50%) !important;
+  }
+
+  .rn-queue__content div:has(> div > iframe.rn-plugin-root[src*="widgetName=flashcard-speech"]) > div,
+  iframe.rn-plugin-root[src*="widgetName=flashcard-speech"] {
+    width: 82px !important;
+    height: 38px !important;
+  }
+`;
+const HIDE_OFFICIAL_TTS_CONTROLS_CSS = `
   .spaced-repetition__bottom > .flex.items-center.justify-center.gap-2 {
     display: none !important;
   }
@@ -15,7 +34,8 @@ async function syncQueueAppearance(plugin: ReactRNPlugin): Promise<void> {
   try {
     const replaceControls = (await plugin.settings.getSetting<boolean>(NATIVE_SETTING_IDS.replaceRemNoteTtsControls)) !== false;
     if (replaceControls === lastReplaceControls) return;
-    await plugin.app.registerCSS(OFFICIAL_TTS_CSS_ID, replaceControls ? OFFICIAL_TTS_CONTROLS_CSS : '');
+    const queueCss = `${QUEUE_CONTROL_POSITION_CSS}${replaceControls ? HIDE_OFFICIAL_TTS_CONTROLS_CSS : ''}`;
+    await plugin.app.registerCSS(OFFICIAL_TTS_CSS_ID, queueCss);
     lastReplaceControls = replaceControls;
   } catch (error) {
     console.error('Smart Flashcard TTS could not update the queue appearance.', error);

@@ -140,6 +140,11 @@ export class SpeechController {
         return { provider: 'azure' };
       } catch (error) {
         this.cleanupAzureAudio();
+        const blockedByChrome = error instanceof Error && error.message.startsWith('Chrome blocked autoplay');
+        // Browser speech is blocked by the same RemNote iframe policy. Keep the
+        // precise Azure message instead of failing a second time with a vague
+        // browser `not-allowed` error.
+        if (blockedByChrome) throw error;
         if (!settings.fallbackToBrowser || currentGeneration !== this.generation) throw error;
         const reason = error instanceof Error ? error.message : 'Azure Speech failed.';
         await this.speakWithBrowser(content, settings, currentGeneration);
@@ -193,12 +198,41 @@ export class SpeechController {
     for (const chunk of splitSpeechText(content.text, 450)) {
       if (generation !== this.generation) return;
       // A single explicit SDK player avoids both double playback and a second
-      // manual audio.play() call that Chrome can reject during card autoplay.
+      // independent audio element, which previously caused echo. We still
+      // observe the SDK's own element so blocked autoplay is never reported as
+      // successful playback.
       const player = new SpeechSDK.SpeakerAudioDestination();
-      player.volume = settings.volume;
+      let markPlaybackStarted: () => void = () => undefined;
+      let markPlaybackBlocked: (error: Error) => void = () => undefined;
+      const playbackStarted = new Promise<void>((resolve, reject) => {
+        markPlaybackStarted = resolve;
+        markPlaybackBlocked = reject;
+      });
+      // The rejection is awaited after synthesis completes. Attach a handler
+      // immediately so a fast browser rejection is not treated as unhandled.
+      void playbackStarted.catch(() => undefined);
+
       const playbackFinished = new Promise<void>((resolve) => {
         player.onAudioEnd = () => resolve();
       });
+      player.onAudioStart = () => {
+        const audio = player.internalAudio;
+        if (!audio) {
+          markPlaybackBlocked(new Error('Azure created no playable audio element.'));
+          return;
+        }
+
+        // The SDK creates its audio element only after the format is known, so
+        // volume must be applied here rather than immediately after construction.
+        audio.volume = settings.volume;
+        audio.muted = false;
+        void audio.play().then(
+          () => markPlaybackStarted(),
+          () => markPlaybackBlocked(new Error(
+            'Chrome blocked autoplay / Chrome 阻止了自动播放，请点击扬声器按钮启用声音。',
+          )),
+        );
+      };
       const audioConfig = SpeechSDK.AudioConfig.fromSpeakerOutput(player);
       const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, audioConfig);
       this.activeSynthesizer = synthesizer;
@@ -233,8 +267,12 @@ export class SpeechController {
       });
 
       if (generation !== this.generation) return;
-      await new Promise<void>((resolve) => {
-        const timeoutId = window.setTimeout(resolve, 90_000);
+      await playbackStarted;
+      await new Promise<void>((resolve, reject) => {
+        const timeoutId = window.setTimeout(
+          () => reject(new Error('Azure audio playback timed out.')),
+          90_000,
+        );
         void playbackFinished.then(() => {
           window.clearTimeout(timeoutId);
           resolve();

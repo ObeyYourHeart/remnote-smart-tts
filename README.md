@@ -45,6 +45,8 @@ Browser mode is free and can work offline when the selected system voice is loca
 
 Azure mode requires your own Azure Speech resource, Speech Key, Region, and internet connection. Azure usage may incur charges under your Microsoft subscription.
 
+Chrome may block audio that starts automatically inside RemNote's cross-origin plugin iframe because RemNote does not grant that iframe the `autoplay` permission. The plugin detects this instead of showing a false success state. Manual playback from the centered speaker button still uses the selected Azure Neural Voice. Fully automatic Azure audio on initial queue entry would require either RemNote to grant `autoplay` or a separate browser extension running at the page level.
+
 Recommended defaults:
 
 | Language | Voice |
@@ -122,6 +124,8 @@ Smart Flashcard TTS（智能卡片朗读）为 RemNote 复习队列提供完整�
 #### Azure Neural Voice
 
 Azure 模式需要你自己的 Azure Speech resource、Speech Key、Region 和网络连接，并可能根据 Microsoft 订阅方案产生费用。
+
+Chrome 可能会拦截 RemNote 跨域插件 iframe 中自动开始的声音，因为 RemNote 没有为该 iframe 提供 `autoplay` 权限。插件现在会准确报告这一情况，不再显示“已播放”但实际无声。手动点击卡片底部中央的扬声器仍会使用所选 Azure Neural Voice。若要在刚进入队列时全自动播放 Azure 声音，需要 RemNote 开放 `autoplay` 权限，或另做一个运行在页面层的浏览器扩展。
 
 推荐默认声音：
 

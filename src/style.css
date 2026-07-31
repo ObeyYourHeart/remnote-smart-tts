@@ -43,7 +43,8 @@ select:focus-visible {
   align-items: center;
   gap: 6px;
   width: max-content;
-  margin: 7px 22px 3px auto;
+  height: 38px;
+  margin: 0 auto;
 }
 
 .speech-control button {
