@@ -4,6 +4,7 @@ interface SpeechControlProps {
   status: SpeechStatus;
   disabled?: boolean;
   playLabel: string;
+  preparingLabel: string;
   stopLabel: string;
   settingsLabel: string;
   onPlay: () => void;
@@ -20,8 +21,23 @@ function VoiceIcon() {
   );
 }
 
-function StopIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1" /></svg>;
+function LoadingIcon() {
+  return (
+    <svg className="speech-control__spinner" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 4a8 8 0 0 1 8 8" />
+    </svg>
+  );
+}
+
+function PlayingIcon() {
+  return (
+    <span className="speech-control__wave" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+    </span>
+  );
 }
 
 function MoreIcon() {
@@ -38,25 +54,30 @@ export function SpeechControl({
   status,
   disabled,
   playLabel,
+  preparingLabel,
   stopLabel,
   settingsLabel,
   onPlay,
   onStop,
   onOpenSettings,
 }: SpeechControlProps) {
+  const preparing = status === 'preparing';
   const speaking = status === 'speaking';
+  const active = preparing || speaking;
+  const primaryLabel = preparing ? preparingLabel : speaking ? stopLabel : playLabel;
   return (
-    <div className="speech-control" data-status={status} aria-label="Smart Flashcard TTS">
+    <div className="speech-control" data-status={status} aria-label="Smart Flashcard TTS" aria-live="polite">
       <button
         type="button"
         className="speech-control__primary"
-        onClick={speaking ? onStop : onPlay}
+        onClick={active ? onStop : onPlay}
         disabled={disabled || status === 'loading'}
-        aria-label={speaking ? stopLabel : playLabel}
-        title={speaking ? stopLabel : playLabel}
+        aria-busy={preparing}
+        aria-label={primaryLabel}
+        title={primaryLabel}
       >
         <span className="speech-control__pulse" aria-hidden="true" />
-        {speaking ? <StopIcon /> : <VoiceIcon />}
+        {preparing ? <LoadingIcon /> : speaking ? <PlayingIcon /> : <VoiceIcon />}
       </button>
       <button type="button" className="speech-control__settings" onClick={onOpenSettings} aria-label={settingsLabel} title={settingsLabel}>
         <MoreIcon />

@@ -1,9 +1,25 @@
 import type {
   SpeechContent,
+  SpeechPlaybackCallbacks,
   SpeechPlaybackResult,
   SpeechSettings,
   SupportedLanguage,
 } from './types';
+
+type AzureSpeechSdk = typeof import('microsoft-cognitiveservices-speech-sdk');
+
+let azureSpeechSdkPromise: Promise<AzureSpeechSdk> | null = null;
+
+/**
+ * Starts loading the optional Azure SDK before the first synthesis request.
+ * This removes module download and parsing time from the first card playback.
+ */
+export function preloadAzureSpeechSdk(): Promise<AzureSpeechSdk> {
+  if (!azureSpeechSdkPromise) {
+    azureSpeechSdkPromise = import('microsoft-cognitiveservices-speech-sdk');
+  }
+  return azureSpeechSdkPromise;
+}
 
 const LOCALES: Record<SupportedLanguage, string> = {
   zh: 'zh-CN',
@@ -138,6 +154,7 @@ export class SpeechController {
     content: SpeechContent,
     settings: SpeechSettings,
     azureKey: string,
+    callbacks: SpeechPlaybackCallbacks = {},
   ): Promise<SpeechPlaybackResult> {
     this.cancel();
     const currentGeneration = this.generation;
@@ -146,12 +163,12 @@ export class SpeechController {
       if (!azureKey || !settings.azureRegion.trim()) {
         const reason = 'Azure Speech key or region is missing.';
         if (!settings.fallbackToBrowser) throw new Error(reason);
-        await this.speakWithBrowser(content, settings, currentGeneration);
+        await this.speakWithBrowser(content, settings, currentGeneration, callbacks);
         return { provider: 'browser', fallbackReason: reason };
       }
 
       try {
-        await this.speakWithAzure(content, settings, azureKey, currentGeneration);
+        await this.speakWithAzure(content, settings, azureKey, currentGeneration, callbacks);
         return { provider: 'azure' };
       } catch (error) {
         this.cleanupAzureAudio();
@@ -162,12 +179,12 @@ export class SpeechController {
         if (blockedByChrome) throw error;
         if (!settings.fallbackToBrowser || currentGeneration !== this.generation) throw error;
         const reason = error instanceof Error ? error.message : 'Azure Speech failed.';
-        await this.speakWithBrowser(content, settings, currentGeneration);
+        await this.speakWithBrowser(content, settings, currentGeneration, callbacks);
         return { provider: 'browser', fallbackReason: reason };
       }
     }
 
-    await this.speakWithBrowser(content, settings, currentGeneration);
+    await this.speakWithBrowser(content, settings, currentGeneration, callbacks);
     return { provider: 'browser' };
   }
 
@@ -175,6 +192,7 @@ export class SpeechController {
     content: SpeechContent,
     settings: SpeechSettings,
     generation: number,
+    callbacks: SpeechPlaybackCallbacks,
   ): Promise<void> {
     const voices = await waitForBrowserVoices();
     const voice = chooseBrowserVoice(voices, content.language, settings.browserVoices[content.language]);
@@ -188,6 +206,7 @@ export class SpeechController {
         utterance.rate = settings.rate;
         utterance.volume = settings.volume;
         utterance.pitch = 1;
+        utterance.onstart = () => callbacks.onPlaybackStart?.();
         utterance.onend = () => resolve();
         utterance.onerror = (event) => {
           if (event.error === 'canceled' || event.error === 'interrupted') resolve();
@@ -203,9 +222,10 @@ export class SpeechController {
     settings: SpeechSettings,
     azureKey: string,
     generation: number,
+    callbacks: SpeechPlaybackCallbacks,
   ): Promise<void> {
-    // Azure is a large optional dependency. Dynamic import keeps normal browser-voice cards fast.
-    const SpeechSDK = await import('microsoft-cognitiveservices-speech-sdk');
+    // Reuse the module promise started while the card was being inspected.
+    const SpeechSDK = await preloadAzureSpeechSdk();
     const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(azureKey, settings.azureRegion.trim());
     speechConfig.speechSynthesisVoiceName = settings.azureVoices[content.language];
     speechConfig.speechSynthesisOutputFormat = SpeechSDK.SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3;
@@ -242,7 +262,10 @@ export class SpeechController {
         audio.volume = settings.volume;
         audio.muted = false;
         void audio.play().then(
-          () => markPlaybackStarted(),
+          () => {
+            callbacks.onPlaybackStart?.();
+            markPlaybackStarted();
+          },
           () => markPlaybackBlocked(new Error(
             'Chrome blocked autoplay / Chrome 阻止了自动播放，请点击扬声器按钮启用声音。',
           )),

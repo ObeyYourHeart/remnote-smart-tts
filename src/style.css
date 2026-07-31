@@ -75,8 +75,8 @@ select:focus-visible {
   color: var(--sf-accent);
   background: rgba(255, 255, 255, 0.84);
   border: 1px solid rgba(91, 92, 106, 0.16);
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(32, 34, 42, 0.07);
+  border-radius: 50%;
+  box-shadow: 0 2px 7px rgba(32, 34, 42, 0.06);
   backdrop-filter: blur(8px);
 }
 
@@ -113,20 +113,59 @@ select:focus-visible {
   position: absolute;
   inset: -3px;
   border: 2px solid rgba(103, 80, 216, 0.36);
-  border-radius: 12px;
+  border-radius: 50%;
   opacity: 0;
 }
 
+.speech-control[data-status="preparing"] .speech-control__primary,
 .speech-control[data-status="speaking"] .speech-control__primary {
-  color: white;
-  background: linear-gradient(145deg, #d25c67, #b74250);
-  border-color: rgba(145, 42, 54, 0.28);
-  box-shadow: 0 5px 14px rgba(183, 66, 80, 0.25), inset 0 1px rgba(255, 255, 255, 0.22);
+  color: var(--sf-accent);
+  background: var(--sf-accent-soft);
+  border-color: rgba(103, 80, 216, 0.22);
+  box-shadow: 0 3px 10px rgba(80, 64, 160, 0.13);
 }
 
 .speech-control[data-status="speaking"] .speech-control__pulse {
   opacity: 1;
   animation: sf-pulse 1.45s ease-out infinite;
+}
+
+.speech-control__spinner circle {
+  opacity: 0.2;
+}
+
+.speech-control__spinner path {
+  animation: sf-spin 700ms linear infinite;
+  transform-origin: center;
+}
+
+.speech-control__wave {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 18px;
+  height: 18px;
+}
+
+.speech-control__wave i {
+  width: 2px;
+  height: 7px;
+  background: currentColor;
+  border-radius: 2px;
+  animation: sf-wave 720ms ease-in-out infinite alternate;
+}
+
+.speech-control__wave i:nth-child(2) {
+  height: 13px;
+  animation-delay: -240ms;
+}
+
+.speech-control__wave i:nth-child(3) {
+  height: 9px;
+  animation-delay: -480ms;
 }
 
 .speech-control[data-status="error"] {
@@ -136,6 +175,15 @@ select:focus-visible {
 @keyframes sf-pulse {
   0% { opacity: 0.9; transform: scale(0.76); }
   75%, 100% { opacity: 0; transform: scale(1.3); }
+}
+
+@keyframes sf-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes sf-wave {
+  from { transform: scaleY(0.55); opacity: 0.55; }
+  to { transform: scaleY(1); opacity: 1; }
 }
 
 /* Advanced voice setup ---------------------------------------------------- */

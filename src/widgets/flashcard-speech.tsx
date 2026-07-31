@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { SpeechControl } from '../components/speech-control';
 import { buildCardSpeechPlan } from '../core/cards';
 import { readAzureKey, readSettings } from '../core/settings';
-import { SpeechController } from '../core/speech';
+import { preloadAzureSpeechSdk, SpeechController } from '../core/speech';
 import type { CardSpeechPlan, SpeechSettings, SpeechStatus } from '../core/types';
 import '../style.css';
 
@@ -35,6 +35,12 @@ function FlashcardSpeechWidget() {
       if (!forceSettings && signature === contextSignatureRef.current) return;
 
       const [nextSettings, nextAzureKey] = await Promise.all([readSettings(plugin), readAzureKey(plugin)]);
+      if (nextSettings.provider === 'azure') {
+        // Load the Azure runtime while RemNote finishes rendering the card.
+        void preloadAzureSpeechSdk().catch((error) => {
+          console.error('Smart Flashcard TTS could not preload Azure Speech.', error);
+        });
+      }
       const nextPlan = await buildCardSpeechPlan(plugin, nextContext, nextSettings);
 
       contextSignatureRef.current = signature;
@@ -54,9 +60,11 @@ function FlashcardSpeechWidget() {
     const content = context.revealed ? plan.answer : plan.question;
     if (!content.text.trim()) return;
 
-    setStatus('speaking');
+    setStatus('preparing');
     try {
-      const result = await controller.speak(content, settings, azureKey);
+      const result = await controller.speak(content, settings, azureKey, {
+        onPlaybackStart: () => setStatus('speaking'),
+      });
       if (result.fallbackReason) {
         await plugin.app.toast(
           settings.uiLanguage === 'zh'
@@ -122,7 +130,7 @@ function FlashcardSpeechWidget() {
       autoSpeakTimerRef.current = null;
       autoSpokenSignatureRef.current = signature;
       void speakCurrentSide();
-    }, 180);
+    }, 60);
 
     return () => {
       if (autoSpeakTimerRef.current !== null) window.clearTimeout(autoSpeakTimerRef.current);
@@ -138,6 +146,7 @@ function FlashcardSpeechWidget() {
       status={status}
       disabled={!plan}
       playLabel={chinese ? '朗读当前卡片面' : 'Read this side'}
+      preparingLabel={chinese ? '正在准备语音' : 'Preparing speech'}
       stopLabel={chinese ? '停止朗读' : 'Stop speaking'}
       settingsLabel={chinese ? '高级声音设置' : 'Advanced voice setup'}
       onPlay={() => void speakCurrentSide()}

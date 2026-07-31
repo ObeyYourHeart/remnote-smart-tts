@@ -54,7 +54,11 @@ export interface RenderedCloze {
   placeholderLanguage: SupportedLanguage;
 }
 
-export type SpeechStatus = 'idle' | 'loading' | 'speaking' | 'error';
+export type SpeechStatus = 'idle' | 'loading' | 'preparing' | 'speaking' | 'error';
+
+export interface SpeechPlaybackCallbacks {
+  onPlaybackStart?: () => void;
+}
 
 export interface SpeechPlaybackResult {
   provider: SpeechProvider;
