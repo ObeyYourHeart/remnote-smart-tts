@@ -18,8 +18,9 @@ export function buildDescriptorSpeech(
   const descriptor = trimEndingPunctuation(descriptorText);
   const value = answerText.trim();
 
+  const subject = buildDescriptorSubject(concept, descriptor, language);
+
   if (language === 'en') {
-    const subject = `the ${descriptor} of ${concept}`;
     const answer = /^(?:is|are)\b/i.test(value)
       ? `${subject} ${value}`
       : `${subject} is ${value}`;
@@ -30,16 +31,27 @@ export function buildDescriptorSpeech(
   }
 
   if (language === 'ja') {
-    const subject = `${concept}の${descriptor}`;
     return {
       question: `${subject}は何ですか？`,
       answer: /^(?:は|とは)/u.test(value) ? `${subject}${value}` : `${subject}は${value}`,
     };
   }
 
-  const subject = `${concept}的${descriptor}`;
   return {
     question: `${subject}是什么？`,
     answer: /^是/u.test(value) ? `${subject}${value}` : `${subject}是${value}`,
   };
+}
+
+/** Returns the self-contained subject used by structured Descriptor answers. */
+export function buildDescriptorSubject(
+  conceptText: string,
+  descriptorText: string,
+  language: SupportedLanguage,
+): string {
+  const concept = trimEndingPunctuation(conceptText);
+  const descriptor = trimEndingPunctuation(descriptorText);
+  if (language === 'en') return `the ${descriptor} of ${concept}`;
+  if (language === 'ja') return `${concept}の${descriptor}`;
+  return `${concept}的${descriptor}`;
 }

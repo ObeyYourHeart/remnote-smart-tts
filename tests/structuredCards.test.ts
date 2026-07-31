@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { buildStructuredAnswer } from '../src/core/structuredCards';
+
+test('reads Chinese Multi-Line children as an unordered set', () => {
+  assert.equal(
+    buildStructuredAnswer('市盈率的用途', ['估值。', '同业比较'], 'multi-line', 'zh'),
+    '市盈率的用途包括：估值；同业比较。',
+  );
+});
+
+test('reads Chinese List-Answer children in their stored order', () => {
+  assert.equal(
+    buildStructuredAnswer(undefined, ['收集数据', '计算指标', '复核结果'], 'list-answer', 'zh'),
+    '答案依次包括：第一，收集数据；第二，计算指标；第三，复核结果。',
+  );
+});
+
+test('uses English list ordinals in one utterance', () => {
+  assert.equal(
+    buildStructuredAnswer('The process', ['Collect data.', 'Check results.'], 'list-answer', 'en'),
+    'The process includes, in order: First, Collect data; Second, Check results.',
+  );
+});
+
+test('uses a Japanese set template', () => {
+  assert.equal(
+    buildStructuredAnswer('構成要素', ['売上', '費用'], 'multi-line', 'ja'),
+    '構成要素には、売上；費用が含まれます。',
+  );
+});
+
+test('drops blank children instead of speaking empty items', () => {
+  assert.equal(
+    buildStructuredAnswer(undefined, ['first', ' ', 'third'], 'multi-line', 'en'),
+    'The answer includes: first; third.',
+  );
+});

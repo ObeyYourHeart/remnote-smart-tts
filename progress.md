@@ -11,3 +11,23 @@
 - 2026-07-27：创建 GitHub Release `v0.2.0`，上传正式构建 `PluginZip.zip` 供 RemNote 安装。
 - 2026-07-28：插件与仓库正式改名为 `Smart Flashcard TTS` / `ObeyYourHeart/smart-flashcard-tts`；内部插件 ID 保持不变以兼容升级。
 - 2026-07-29：v0.3 将日常选项迁移到 RemNote 原生插件设置，重做中英双语高级声音页与极简卡片控件，并修复生产包未加载 widget CSS 的问题。
+
+## 0.7 Multi-Line / List-Answer
+
+- Started structure-aware speech expansion for Multi-Line, List-Answer, and Multiple-Choice cards.
+- Created persistent plan and research notes.
+- Located the local reference plugin. A combined `rg` scan returned exit code 1 when one query had no matches; subsequent research will run the searches separately.
+- Confirmed that the SDK Card object does not identify the three structural variants directly; continued research must locate stable Rem metadata or use conservative structural inference.
+- Read official card-creation and Multi-Line/List documentation. Established direct-child scope and the difference between Set and ordered List cards.
+- A broad search of the minified SDK referenced a non-existent `index.lib.js` path and produced unusable output; switched back to declaration files and targeted metadata checks.
+- Found the stable Multi-Line powerup marker and documented the public-API gap for Multiple-Choice correctness metadata.
+- Direct web access to unpkg declarations was rejected as an unsafe URL. Next attempt will inspect the npm package tarball in a workspace temporary folder.
+- Downloaded and inspected official SDK 0.0.46 in a temporary directory. Confirmed the public Multiple-Choice metadata gap remains.
+- Confirmed all public flashcard widget contexts contain no sub-card or correct-option metadata. The safe implementation can fully support Multi-Line/Set and ordered List speech, but cannot truthfully announce Multiple-Choice correctness.
+- A README/manifest inspection command referenced a root `manifest.json` that does not exist; the project manifest is correctly located at `public/manifest.json`.
+- A Windows `rg` command used shell-style recursive globs and failed with error 123; subsequent searches use `rg <directory> --glob '*.d.ts'`.
+- Initial 0.7 implementation compiles successfully. The first test run failed before loading any test because the sandbox blocked Node test-worker spawning with `spawn EPERM`; rerun the same suite outside that restriction.
+- The first structure integration test imported the browser-only RemNote SDK bundle in Node and failed because `self` was undefined. Added a minimal test-only `self` compatibility global before dynamically importing the card planner.
+- Version 0.7.0 passes type checking and all 29 tests. The first production build attempt was blocked by sandbox `spawnSync cmd.exe EPERM` inside RemNote's validation script; rerun the unchanged build with Windows execution permission.
+- Production build and RemNote manifest validation passed; `PluginZip.zip` was regenerated.
+- Local DEV server PID 37908 serves `Smart Flashcard TTS [DEV]` version 0.7.0 at port 8081.

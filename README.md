@@ -16,6 +16,7 @@ Smart Flashcard TTS provides complete, structure-aware card reading for the RemN
 
 - Reads the question when a card appears and the answer after reveal.
 - Supports forward and backward Basic, Concept, and Descriptor cards.
+- Reads native Multi-Line/Set answers and ordered List-Answer children in one smooth utterance.
 - Replaces only the active Cloze with a language-aware prompt: `什么`, `what`, or `なに`.
 - Detects the question and answer languages separately, allowing bilingual cards to switch voices automatically.
 - Provides independent voice selection for Chinese, English, and Japanese.
@@ -71,7 +72,7 @@ Choose **Autoplay mode** in **Settings → Plugins → Smart Flashcard TTS**. If
 
 ### Current scope
 
-Version 0.6 adds parent-Concept-aware Descriptor prompts in Chinese, English, and Japanese. It also supports native Concept recognition, standard forward/backward cards and text Clozes, faster Azure startup, accurate preparing/playing feedback, and answer-side autoplay. Multi-line incremental reveal, randomized multiple-choice order, full table rendering, image occlusion descriptions, LaTeX Clozes, and mobile autoplay require separate handling and are not yet automated.
+Version 0.7 adds native Multi-Line/Set and ordered List-Answer speech. It reads direct card-item children in one synthesis request, preserves List order, and keeps Concept + Descriptor prompts self-contained in Chinese, English, and Japanese. RemNote's public Plugin SDK does not expose Multiple-Choice correctness or the active incremental List item, so the plugin does not guess these answers. Randomized Multiple-Choice correctness, exact incremental List prompts, full table rendering, image occlusion descriptions, LaTeX Clozes, and mobile autoplay require future SDK support or an explicit user-authored marker.
 
 ### Development
 
@@ -96,6 +97,7 @@ Smart Flashcard TTS（智能卡片朗读）为 RemNote 复习队列提供完整�
 
 - 卡片出现时朗读问题，揭晓后朗读答案。
 - 支持 Basic、Concept、Descriptor 正向与反向卡片。
+- 支持原生 Multi-Line/Set 与有序 List-Answer，并把整面答案合成为一次流畅朗读。
 - 只把当前被提问的 Cloze 替换成符合语境的“什么”、`what` 或“なに”。
 - 问题与答案分别检测语言，中外文双语卡片可以自动切换声音。
 - 中文、英文、日文可以独立选择 voice。
@@ -151,7 +153,7 @@ RemNote 自带 Queue Text to Speech，表格列也可以启用 TTS。Plugin SDK 
 
 ### 当前范围
 
-0.6 版加入能够结合父级 Concept 的 Descriptor 中英日提问模板；同时支持原生 Concept 识别、普通正反向卡和文字 Cloze、更快的 Azure 首次启动、准确的准备/播放状态和答案面自动朗读。逐行揭晓、多选项随机顺序、完整表格渲染、图片遮挡描述、LaTeX Cloze 和移动端自动播放仍需要单独适配。
+0.7 版加入原生 Multi-Line/Set 和有序 List-Answer 朗读：只读取当前父卡的直接 card-item 子项，List 保留顺序，并把整面答案放进一次语音合成请求；Concept + Descriptor 仍使用中英日完整语义模板。RemNote 公开 Plugin SDK 目前不提供 Multiple-Choice 正确选项及当前逐项 List 子题，因此插件不会猜测答案。随机多选正确项、精确的逐项 List 提问、完整表格渲染、图片遮挡描述、LaTeX Cloze 和移动端自动播放仍需未来 SDK 支持或用户显式标记。
 
 ### 本地开发
 

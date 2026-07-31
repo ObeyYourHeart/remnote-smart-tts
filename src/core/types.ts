@@ -40,6 +40,10 @@ export type SupportedCardKind =
   | 'concept-backward'
   | 'descriptor-forward'
   | 'descriptor-backward'
+  | 'multi-line-forward'
+  | 'multi-line-backward'
+  | 'list-answer-forward'
+  | 'list-answer-backward'
   | 'cloze';
 
 export interface CardSpeechPlan {

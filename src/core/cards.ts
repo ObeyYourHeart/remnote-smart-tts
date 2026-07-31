@@ -1,8 +1,10 @@
 import { RemType, type RNPlugin, type WidgetLocationContextDataMap, WidgetLocation } from '@remnote/plugin-sdk';
 import { buildConceptSpeech } from './concept';
-import { buildDescriptorSpeech } from './descriptor';
+import { buildDescriptorSpeech, buildDescriptorSubject } from './descriptor';
 import { detectLanguage } from './language';
 import { piecesToPlainText, renderActiveCloze, richTextToPieces } from './richText';
+import { readStructuredCard } from './structuredCardReader';
+import { buildStructuredAnswer } from './structuredCards';
 import type { CardSpeechPlan, SpeechSettings } from './types';
 
 type FlashcardContext = WidgetLocationContextDataMap[WidgetLocation.FlashcardUnder];
@@ -56,6 +58,64 @@ export async function buildCardSpeechPlan(
 
   const frontText = await readPlainText(plugin, rem.text);
   const backText = await readPlainText(plugin, rem.backText);
+
+  const structuredCard = await readStructuredCard(plugin, rem);
+  if (structuredCard && frontText) {
+    let questionText = frontText;
+    let subject: string | undefined;
+    let backwardAnswer = frontText;
+    const questionLanguage = detectLanguage(frontText, settings.defaultLanguage);
+
+    if (rem.type === RemType.CONCEPT) {
+      const conceptSpeech = buildConceptSpeech(frontText, '', questionLanguage);
+      questionText = conceptSpeech.question;
+      subject = frontText;
+      backwardAnswer = conceptSpeech.backwardAnswer;
+    } else if (rem.type === RemType.DESCRIPTOR) {
+      const parentRem = await rem.getParentRem();
+      const parentText = await readPlainText(plugin, parentRem?.text);
+      if (parentRem?.type === RemType.CONCEPT && parentText) {
+        questionText = buildDescriptorSpeech(parentText, frontText, '', questionLanguage).question;
+        subject = buildDescriptorSubject(parentText, frontText, questionLanguage);
+        // Preserve the existing reverse Descriptor behavior: identify the
+        // parent Concept represented by the Descriptor and its child values.
+        backwardAnswer = parentText;
+      }
+    }
+
+    const answerLanguage = detectLanguage(
+      structuredCard.items.join(' '),
+      questionLanguage,
+    );
+    const spokenItems = buildStructuredAnswer(
+      cardType === 'backward' ? undefined : subject,
+      structuredCard.items,
+      structuredCard.kind,
+      answerLanguage,
+    );
+    const kindPrefix = structuredCard.kind === 'list-answer' ? 'list-answer' : 'multi-line';
+
+    if (cardType === 'backward') {
+      return {
+        cardId: context.cardId,
+        remId: context.remId,
+        kind: `${kindPrefix}-backward`,
+        question: { text: spokenItems, language: answerLanguage },
+        answer: {
+          text: backwardAnswer,
+          language: detectLanguage(backwardAnswer, questionLanguage),
+        },
+      };
+    }
+
+    return {
+      cardId: context.cardId,
+      remId: context.remId,
+      kind: `${kindPrefix}-forward`,
+      question: { text: questionText, language: questionLanguage },
+      answer: { text: spokenItems, language: answerLanguage },
+    };
+  }
 
   if (rem.type === RemType.CONCEPT) {
     if (!frontText || !backText) return null;
