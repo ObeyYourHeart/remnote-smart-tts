@@ -25,15 +25,17 @@ function makePlugin(
   cardType: 'forward' | 'backward' = 'forward',
   cardRem: Rem = rem,
 ): RNPlugin {
+  const cardRemId = cardRem._id || 'card-rem';
   return {
     card: {
       findOne: async () => ({
         _id: 'resolved-card',
+        remId: cardRemId,
         getType: async () => cardType,
         getRem: async () => cardRem,
       }),
     },
-    rem: { findOne: async () => rem },
+    rem: { findOne: async (id: string) => id === cardRemId ? cardRem : rem },
   } as unknown as RNPlugin;
 }
 
@@ -162,6 +164,7 @@ test('climbs from a queue child Rem to its Multi-Line parent', async () => {
     text: ['忽视利润水平'],
     backText: [],
     hasPowerup: async () => false,
+    isCardItem: async () => true,
     getParentRem: async () => parentRem,
   } as unknown as Rem;
 
@@ -175,4 +178,34 @@ test('climbs from a queue child Rem to its Multi-Line parent', async () => {
   assert.equal(plan?.kind, 'multi-line-forward');
   assert.equal(plan?.question.text, '市销率的缺陷');
   assert.equal(plan?.answer.text, '答案包括：忽视利润水平；易受季节波动影响。');
+});
+
+test('keeps a Descriptor card when its Concept parent owns Multi-Line cards', async () => {
+  const conceptRem = {
+    _id: 'concept-parent',
+    type: 1,
+    text: ['市销率'],
+    backText: [],
+    hasPowerup: async () => true,
+  } as unknown as Rem;
+  const descriptorRem = {
+    _id: 'descriptor-card',
+    type: 2,
+    text: ['算法'],
+    backText: ['市销率 = 市值 ÷ 营业收入'],
+    hasPowerup: async () => false,
+    isCardItem: async () => true,
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(conceptRem, 'forward', descriptorRem),
+    { remId: 'concept-parent', cardId: 'descriptor-flashcard', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'descriptor-forward');
+  assert.equal(plan?.question.text, '市销率的算法是什么？');
+  assert.equal(plan?.answer.text, '市销率的算法是市销率 = 市值 ÷ 营业收入');
 });

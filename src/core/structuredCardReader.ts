@@ -19,6 +19,12 @@ export async function resolveStructuredCardRoot(rem: Rem): Promise<Rem | null> {
   try {
     if (await hasMultiLinePowerup(rem)) return rem;
 
+    // A normal Concept/Descriptor card can live below a parent that also owns
+    // Multi-Line cards. If this Rem already has its own answer, keep it as the
+    // active card instead of incorrectly replacing it with the parent.
+    if (Array.isArray(rem.backText) && rem.backText.length > 0) return null;
+    if (!(await rem.isCardItem())) return null;
+
     const parentRem = await rem.getParentRem();
     if (parentRem && await hasMultiLinePowerup(parentRem)) return parentRem;
     return null;

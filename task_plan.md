@@ -69,6 +69,14 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 - Support FlashcardUnder contexts whose optional `cardId` is absent.
 - Add regression tests, bump the patch version, rebuild DEV, and commit locally.
 
+### Phase 8: Blank Widget and installed-version diagnosis
+
+**Status:** complete
+
+- Inspect the live RemNote queue, DEV iframe, console output, and plugin manager version.
+- Capture the real Multi-Line and Descriptor contexts instead of inferring them from SDK types.
+- Repair empty-plan behavior, add regressions and visible diagnostics, bump the version, build, verify in Chrome, and commit locally.
+
 ## Constraints
 
 - Do not control the user's Chrome unless explicitly requested.
@@ -92,3 +100,7 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 | Real Multi-Line card rendered no playback control | 1 | The 0.7 planner incorrectly required optional `cardId` and assumed `context.remId` was always the Multi-Line parent; repair both assumptions. |
 | Existing RemNote tabs were intermittently slow to attach | 1 | Opened one temporary tab in the same signed-in Chrome session and limited inspection to the current RemNote queue. |
 | RemNote DOM inspection timed out repeatedly after HMR | 2 | Verified the runtime path with targeted regression tests, build validation, and the DEV manifest; leave the final Multi-Line visual confirmation to a clean queue reload. |
+| Reading inside the DEV iframe timed out and reset browser control | 1 | Switch to top-level iframe metadata and captured console logs instead of repeating the frame-body read. |
+| Node test workers were blocked with `spawn EPERM` in the sandbox | 1 | Re-run the unchanged test command with the existing approved Windows permission. |
+| Two new structured-plan tests initially failed | 1 | Make the resolved Card Rem authoritative over the broader widget context and complete the child-card fixture with `isCardItem()`. |
+| Post-HMR Chrome snapshot timed out and reset browser control | 1 | Use one isolated same-account RemNote tab for a final lightweight check; do not retry the claimed page snapshot. |

@@ -13,9 +13,15 @@ async function readPlainText(plugin: RNPlugin, richText: Parameters<typeof richT
   return piecesToPlainText(await richTextToPieces(plugin, richText));
 }
 
-async function readCardRem(card: Card | undefined): Promise<Rem | undefined> {
+async function readCardRem(plugin: RNPlugin, card: Card | undefined): Promise<Rem | undefined> {
   if (!card) return undefined;
   try {
+    // `Card.remId` is the stable SDK identity for the Rem that generated the
+    // queue card. Resolve it directly before relying on the extra Card RPC.
+    if (card.remId) {
+      const rem = await plugin.rem.findOne(card.remId);
+      if (rem) return rem;
+    }
     return await card.getRem();
   } catch (error) {
     console.warn('Could not resolve the Rem attached to the current card.', error);
@@ -37,10 +43,12 @@ export async function buildCardSpeechPlan(
   ]);
   if (!contextRem) return null;
 
-  const cardRem = await readCardRem(card);
+  const cardRem = await readCardRem(plugin, card);
   const initialRem = cardRem ?? contextRem;
-  const structuredRoot = await resolveStructuredCardRoot(initialRem)
-    ?? (initialRem._id !== contextRem._id ? await resolveStructuredCardRoot(contextRem) : null);
+  // When the Card resolves to a concrete Rem, that Rem is authoritative. The
+  // broader widget context can point at a parent Concept and must not replace a
+  // valid Descriptor child with that parent.
+  const structuredRoot = await resolveStructuredCardRoot(initialRem);
   const rem = structuredRoot ?? initialRem;
   // `cardId` is optional in FlashcardUnder. Structured cards without it are
   // still safe to read as forward cards because their question is the parent

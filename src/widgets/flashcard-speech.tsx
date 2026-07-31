@@ -138,7 +138,10 @@ function FlashcardSpeechWidget() {
     };
   }, [context, plan, settings, speakCurrentSide]);
 
-  if (!settings?.enabled || (!plan && status !== 'loading')) return null;
+  // Keep the compact control visible when a card cannot be interpreted. A
+  // disabled button with an explanatory tooltip is easier to diagnose than a
+  // completely blank 82x38 widget slot.
+  if (!settings?.enabled) return null;
   const chinese = settings?.uiLanguage === 'zh';
 
   return (
@@ -146,6 +149,7 @@ function FlashcardSpeechWidget() {
       status={status}
       disabled={!plan}
       playLabel={chinese ? '朗读当前卡片面' : 'Read this side'}
+      unavailableLabel={chinese ? '暂时无法识别这张卡片' : 'This card is not recognized yet'}
       preparingLabel={chinese ? '正在准备语音' : 'Preparing speech'}
       stopLabel={chinese ? '停止朗读' : 'Stop speaking'}
       settingsLabel={chinese ? '高级声音设置' : 'Advanced voice setup'}

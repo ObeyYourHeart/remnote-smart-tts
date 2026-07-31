@@ -40,3 +40,11 @@
 - Fixed Multi-Line resolution when RemNote identifies a direct child card item instead of its Multi-Line parent.
 - Added two regression tests. Type checking, all 31 tests, the RemNote production build, and the localhost DEV manifest passed at version 0.7.1.
 - RemNote/Chrome DOM calls timed out repeatedly before a final post-HMR Multi-Line screenshot could be captured. The fix is verified at the planner/build/runtime-manifest layers; the user should reload the queue once for the final live visual check.
+
+## 0.7.2 runtime diagnosis
+
+- Started a new browser-backed investigation after the user confirmed both Multi-Line and Descriptor controls were blank.
+- Confirmed the current Descriptor card has a live localhost DEV flashcard iframe, but the iframe renders no visible control content.
+- Fixed the parent-overrides-Descriptor regression, resolved the active Rem through `Card.remId`, and added a non-blank unsupported-card state.
+- Version 0.7.2 passes type checking, all 32 tests, RemNote manifest validation, and the production build.
+- Real Chrome verification now shows `朗读当前卡片面` and `高级声音设置` on the user's `市销率 / 算法` queue card.

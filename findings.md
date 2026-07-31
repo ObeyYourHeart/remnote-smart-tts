@@ -62,3 +62,13 @@
 - This rules out a general localhost connection, widget registration, or CSS failure for the missing Multi-Line control.
 - The remaining failure matched two planner assumptions: `cardId` was treated as required even though the SDK marks it optional, and only the exact context Rem was checked for the `MultiLineCard` powerup.
 - The repaired resolver checks `card.getRem()`, falls back to the context Rem, and accepts either the current Rem or its parent as the Multi-Line root.
+
+## Live 0.7.1 blank-widget evidence
+
+- On the user's Descriptor queue card, RemNote loaded `http://localhost:8081/index.html?widgetName=flashcard-speech&pluginId=card-speech-studio-dev` at 82 by 38 pixels.
+- The queue did not show the control contents, so DEV connectivity, widget registration, and the outer positioning CSS are not the cause. The widget mounted but its planner returned no usable plan or encountered an internal error.
+- The same RemNote page also loaded the zero-height DEV index widget, confirming the local plugin instance is active.
+- Direct iframe-body inspection timed out. Continue with console logs and non-secret runtime diagnostics rather than repeating that operation.
+- Development and production are deliberately separate plugin identities: Webpack rewrites localhost to `card-speech-studio-dev` / `Smart Flashcard TTS [DEV]`, while the GitHub-installed plugin remains `card-speech-studio`. RemNote showing production 0.3.0 does not describe the localhost DEV build.
+- Localhost now serves DEV version 0.7.2 and compiled the card planner hot update successfully.
+- A fresh same-account Chrome queue tab showed the live `Smart Flashcard TTS` iframe buttons on the exact `市销率 / 算法 / ?` card after the 0.7.2 hot update.

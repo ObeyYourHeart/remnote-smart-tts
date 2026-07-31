@@ -4,6 +4,7 @@ interface SpeechControlProps {
   status: SpeechStatus;
   disabled?: boolean;
   playLabel: string;
+  unavailableLabel: string;
   preparingLabel: string;
   stopLabel: string;
   settingsLabel: string;
@@ -54,6 +55,7 @@ export function SpeechControl({
   status,
   disabled,
   playLabel,
+  unavailableLabel,
   preparingLabel,
   stopLabel,
   settingsLabel,
@@ -64,7 +66,13 @@ export function SpeechControl({
   const preparing = status === 'preparing';
   const speaking = status === 'speaking';
   const active = preparing || speaking;
-  const primaryLabel = preparing ? preparingLabel : speaking ? stopLabel : playLabel;
+  const primaryLabel = disabled
+    ? unavailableLabel
+    : preparing
+      ? preparingLabel
+      : speaking
+        ? stopLabel
+        : playLabel;
   return (
     <div className="speech-control" data-status={status} aria-label="Smart Flashcard TTS" aria-live="polite">
       <button
