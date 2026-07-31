@@ -33,7 +33,13 @@ export interface SpeechContent {
   language: SupportedLanguage;
 }
 
-export type SupportedCardKind = 'forward' | 'backward' | 'descriptor-backward' | 'cloze';
+export type SupportedCardKind =
+  | 'forward'
+  | 'backward'
+  | 'concept-forward'
+  | 'concept-backward'
+  | 'descriptor-backward'
+  | 'cloze';
 
 export interface CardSpeechPlan {
   cardId: string;

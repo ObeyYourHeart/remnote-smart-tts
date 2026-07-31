@@ -71,7 +71,7 @@ Choose **Autoplay mode** in **Settings → Plugins → Smart Flashcard TTS**. If
 
 ### Current scope
 
-Version 0.4 focuses on standard forward/backward cards and text Clozes, with faster Azure startup, accurate preparing/playing feedback, and answer-side autoplay. Multi-line incremental reveal, randomized multiple-choice order, full table rendering, image occlusion descriptions, LaTeX Clozes, and mobile autoplay require separate handling and are not yet automated.
+Version 0.5 adds native Concept recognition and natural Chinese, English, and Japanese Concept prompts. It also supports standard forward/backward cards and text Clozes, faster Azure startup, accurate preparing/playing feedback, and answer-side autoplay. Multi-line incremental reveal, randomized multiple-choice order, full table rendering, image occlusion descriptions, LaTeX Clozes, and mobile autoplay require separate handling and are not yet automated.
 
 ### Development
 
@@ -151,7 +151,7 @@ RemNote 自带 Queue Text to Speech，表格列也可以启用 TTS。Plugin SDK 
 
 ### 当前范围
 
-0.4 版重点支持普通正反向卡和文字 Cloze，并加入更快的 Azure 首次启动、准确的准备/播放状态和答案面自动朗读。逐行揭晓、多选项随机顺序、完整表格渲染、图片遮挡描述、LaTeX Cloze 和移动端自动播放仍需要单独适配。
+0.5 版加入原生 Concept 识别，以及中文、英文和日文的自然 Concept 提问模板；同时支持普通正反向卡和文字 Cloze、更快的 Azure 首次启动、准确的准备/播放状态和答案面自动朗读。逐行揭晓、多选项随机顺序、完整表格渲染、图片遮挡描述、LaTeX Cloze 和移动端自动播放仍需要单独适配。
 
 ### 本地开发
 

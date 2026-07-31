@@ -1,4 +1,5 @@
 import { RemType, type RNPlugin, type WidgetLocationContextDataMap, WidgetLocation } from '@remnote/plugin-sdk';
+import { buildConceptSpeech } from './concept';
 import { detectLanguage } from './language';
 import { piecesToPlainText, renderActiveCloze, richTextToPieces } from './richText';
 import type { CardSpeechPlan, SpeechSettings } from './types';
@@ -54,6 +55,31 @@ export async function buildCardSpeechPlan(
 
   const frontText = await readPlainText(plugin, rem.text);
   const backText = await readPlainText(plugin, rem.backText);
+
+  if (rem.type === RemType.CONCEPT) {
+    if (!frontText || !backText) return null;
+    const conceptLanguage = detectLanguage(frontText, settings.defaultLanguage);
+    const conceptSpeech = buildConceptSpeech(frontText, backText, conceptLanguage);
+
+    if (cardType === 'backward') {
+      const questionLanguage = detectLanguage(backText, conceptLanguage);
+      return {
+        cardId: context.cardId,
+        remId: context.remId,
+        kind: 'concept-backward',
+        question: { text: backText, language: questionLanguage },
+        answer: { text: conceptSpeech.backwardAnswer, language: conceptLanguage },
+      };
+    }
+
+    return {
+      cardId: context.cardId,
+      remId: context.remId,
+      kind: 'concept-forward',
+      question: { text: conceptSpeech.question, language: conceptLanguage },
+      answer: { text: conceptSpeech.answer, language: conceptLanguage },
+    };
+  }
 
   if (cardType === 'backward') {
     // Descriptor reverse cards test the parent Concept, not the Descriptor label itself.
