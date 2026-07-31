@@ -5,5 +5,6 @@ dist-ssr
 *.local
 *.zip
 preview-dist
+dev-server*.log
 __pycache__
 *.pyc
