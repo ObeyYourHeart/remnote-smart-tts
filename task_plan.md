@@ -85,6 +85,14 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 - Determine the actual Widget state and the Rem/Card relationship for the nested `市销率 / 缺陷` card.
 - Implement the smallest reliable fallback, add regression coverage, verify in the same card, and commit locally.
 
+### Phase 10: Live List-Answer card
+
+**Status:** complete
+
+- Inspect `v7pk7h1J9BQuGGRCx` in the user's current browser without grading or editing it.
+- Capture the actual parent and child metadata used by this List-Answer card.
+- Repair ordered-card detection and segmented speech, add regression coverage, bump the patch version, build, verify live, and commit locally.
+
 ## Constraints
 
 - Do not control the user's Chrome unless explicitly requested.
@@ -114,3 +122,7 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 | Post-HMR Chrome snapshot timed out and reset browser control | 1 | Use one isolated same-account RemNote tab for a final lightweight check; do not retry the claimed page snapshot. |
 | Clicking Show Answer timed out after the card became supported | 1 | Do not repeat the click; reconnect once and inspect the resulting state read-only. |
 | Reconnected answer-side snapshot also timed out | 2 | Stop browser retries; retain the confirmed enabled question-side control and ask the user to audibly verify the new answer segmentation after the build. |
+| Requested widget file path did not exist | 1 | Use the actual lowercase `src/widgets/flashcard-speech.tsx` path found by `rg`. |
+| DEV port inspection found no listener and then passed a null PID to `Get-Process` | 1 | Start the local DEV server before live HMR verification and avoid repeating the null-PID lookup. |
+| Combined RemNote reload and full DOM snapshot timed out | 1 | Do not repeat the combined operation; reconnect once and use a lightweight read-only snapshot. |
+| Reconnected lightweight List-Answer snapshot also timed out | 2 | Stop Chrome retries and complete verification through exact structure regressions, DEV manifest, and production build. |

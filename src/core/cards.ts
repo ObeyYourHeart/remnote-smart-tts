@@ -84,9 +84,11 @@ export async function buildCardSpeechPlan(
   const frontText = await readPlainText(plugin, rem.text);
   const backText = await readPlainText(plugin, rem.backText);
 
-  const semanticCardWithoutBackText =
-    (rem.type === RemType.CONCEPT || rem.type === RemType.DESCRIPTOR) && !backText;
-  const structuredCard = await readStructuredCard(plugin, rem, semanticCardWithoutBackText);
+  // Direct card-item children are the SDK's authoritative signal for native
+  // Set/Multi-Line/List-Answer cards. Some queue contexts omit the parent
+  // powerup, including ordinary ordered cards, so an empty back side may use
+  // those child markers without relying on locale-specific DOM numbering.
+  const structuredCard = await readStructuredCard(plugin, rem, !backText);
   if (structuredCard && frontText) {
     let questionText = frontText;
     let subject: string | undefined;

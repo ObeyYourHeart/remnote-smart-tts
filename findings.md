@@ -79,3 +79,12 @@
 - RemNote exposes this as a semantic Descriptor with an empty back side and three direct card-item children, without the parent marker assumed by the previous reader.
 - After allowing unmarked semantic cards to use direct `isCardItem()` children, the same live page changed to the enabled `朗读当前卡片面` control.
 - The user requested each answer item to be spoken separately. Version 0.7.3 now supplies semantic speech segments; Azure uses one SSML request with sentence elements and 220 ms breaks, while browser speech uses separate utterances.
+
+## Live List-Answer card
+
+- `v7pk7h1J9BQuGGRCx` is the live queue card titled `把大象放入冰箱的顺序`.
+- RemNote visibly renders a downward card arrow and the first numbered answer placeholder (`1.` / `3`), but the DEV widget is disabled as `暂时无法识别这张卡片`.
+- No useful structured-card diagnostic was present in the captured top-level console logs, so the next step is to inspect the plugin's existing runtime diagnostics and resolver assumptions in source rather than retrying the same log query.
+- The old planner only allowed unmarked direct card items when the parent was a Concept or Descriptor. This ordinary List-Answer has an empty back side and ordered card-item children, but no usable parent powerup in the queue path, so it was rejected before `isListItem()` classification.
+- Version 0.7.4 treats direct SDK card-item markers as authoritative for any empty-back structured parent and can also climb from a current ordered child to an unmarked parent. The actual visible numbering remains presentation only and is not scraped.
+- Two post-fix Chrome reads timed out, so live visual confirmation was stopped rather than repeatedly controlling the user's page.

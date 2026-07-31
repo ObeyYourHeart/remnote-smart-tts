@@ -55,3 +55,9 @@
 - Added unmarked Descriptor Multi-Line detection and confirmed the live control became enabled on the same card.
 - Added per-item semantic speech segments with one-request Azure SSML pauses; type checking and all 34 tests pass.
 - RemNote manifest validation and the production build pass at version 0.7.3; `PluginZip.zip` was regenerated.
+
+## 0.7.4 live List-Answer repair
+
+- Reproduced the disabled DEV widget on the user's exact `把大象放入冰箱的顺序` queue card. The card visibly exposes numbered, ordered answer items, but the current planner returns unsupported.
+- Version 0.7.4 now accepts direct SDK card-item markers for ordinary unmarked ordered cards and can climb from an ordered child to an unmarked parent. Local DEV serves the updated manifest; the first combined page reload/snapshot timed out before live visual confirmation.
+- Type checking, all 36 tests, RemNote manifest validation, and the production build pass. DEV serves version 0.7.4 and `PluginZip.zip` was regenerated; two Chrome read attempts timed out, so final visible-button confirmation remains for the user's refreshed queue page.

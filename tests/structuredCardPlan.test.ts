@@ -81,6 +81,67 @@ test('builds an ordered List-Answer plan from direct list card items', async () 
   assert.equal(plan?.answer.text, '答案依次包括：第一，收集数据；第二，复核结果。');
 });
 
+test('reads an unmarked ordinary List-Answer card from direct ordered items', async () => {
+  const rem = {
+    _id: 'elephant-order',
+    type: 0,
+    text: ['把大象放入冰箱的顺序'],
+    backText: [],
+    hasPowerup: async () => false,
+    isCardItem: async () => false,
+    getChildrenRem: async () => [
+      makeChild('打开冰箱门', true),
+      makeChild('把大象放进去', true),
+      makeChild('关上冰箱门', true),
+    ],
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(rem),
+    { remId: 'elephant-order', cardId: 'elephant-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'list-answer-forward');
+  assert.equal(plan?.question.text, '把大象放入冰箱的顺序');
+  assert.equal(plan?.answer.segments?.length, 4);
+});
+
+test('climbs from an ordered child when the parent powerup is omitted', async () => {
+  const parentRem = {
+    _id: 'unmarked-list-parent',
+    type: 0,
+    text: ['把大象放入冰箱的顺序'],
+    backText: [],
+    hasPowerup: async () => false,
+    getChildrenRem: async () => [
+      makeChild('打开冰箱门', true),
+      makeChild('把大象放进去', true),
+      makeChild('关上冰箱门', true),
+    ],
+  } as unknown as Rem;
+  const queueChildRem = {
+    _id: 'ordered-child',
+    type: 0,
+    text: ['打开冰箱门'],
+    backText: [],
+    hasPowerup: async () => false,
+    isCardItem: async () => true,
+    getParentRem: async () => parentRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(queueChildRem, 'forward', queueChildRem),
+    { remId: 'ordered-child', cardId: 'ordered-child-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'list-answer-forward');
+  assert.equal(plan?.question.text, '把大象放入冰箱的顺序');
+});
+
 test('keeps the parent Concept in a structured Descriptor prompt', async () => {
   const parentRem = { type: 1, text: ['市盈率'] } as unknown as Rem;
   const rem = {

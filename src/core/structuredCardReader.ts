@@ -11,6 +11,12 @@ async function hasMultiLinePowerup(rem: Rem): Promise<boolean> {
   return rem.hasPowerup(BuiltInPowerupCodes.MultiLineCard);
 }
 
+async function hasDirectCardItems(rem: Rem): Promise<boolean> {
+  const children = await rem.getChildrenRem();
+  const childMarkers = await Promise.all(children.map((child) => child.isCardItem()));
+  return childMarkers.some(Boolean);
+}
+
 /**
  * Queue contexts for structured cards may identify either the parent card Rem
  * or one of its direct card-item children. Normalize both forms to the parent.
@@ -31,7 +37,13 @@ export async function resolveStructuredCardRoot(rem: Rem): Promise<Rem | null> {
     if (!(await rem.isCardItem())) return null;
 
     const parentRem = await rem.getParentRem();
-    if (parentRem && await hasMultiLinePowerup(parentRem)) return parentRem;
+    if (!parentRem) return null;
+    if (await hasMultiLinePowerup(parentRem)) return parentRem;
+
+    // Native ordered cards can omit the MultiLineCard powerup in queue RPCs.
+    // A card-item child whose parent contains direct card-item children is a
+    // stronger structural signal than DOM numbering, so safely keep the parent.
+    if (await hasDirectCardItems(parentRem)) return parentRem;
     return null;
   } catch (error) {
     console.warn('Could not resolve the structured flashcard parent.', error);
