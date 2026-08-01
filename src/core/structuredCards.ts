@@ -2,6 +2,15 @@ import type { SupportedLanguage } from './types';
 
 export type StructuredCardKind = 'multi-line' | 'list-answer';
 
+/** Builds a natural question for an unordered Multi-Line answer set. */
+export function buildMultiLineQuestion(subject: string, language: SupportedLanguage): string {
+  const cleanSubject = trimEndingSeparator(subject);
+
+  if (language === 'en') return `What does ${cleanSubject || 'the answer'} include?`;
+  if (language === 'ja') return `${cleanSubject || '答え'}には何が含まれますか？`;
+  return `${cleanSubject || '答案'}包括什么？`;
+}
+
 const ENGLISH_ORDINALS = [
   'First',
   'Second',

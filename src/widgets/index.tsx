@@ -52,7 +52,7 @@ async function handleSpeechMessage(plugin: ReactRNPlugin, message: PersistentSpe
 
   // A request that waited too long for the persistent listener is ignored so
   // the card widget can safely use its local compatibility path without echo.
-  if (Date.now() - message.sentAt > 1_000) return;
+  if (Date.now() - message.sentAt > 200) return;
   activeSpeechRequestId = message.requestId;
 
   try {

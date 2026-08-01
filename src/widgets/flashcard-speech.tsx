@@ -39,6 +39,37 @@ interface PendingSpeechRequest {
 }
 
 const PERSISTENT_SPEECH_UNAVAILABLE = 'Persistent speech service unavailable.';
+const PERSISTENT_ACKNOWLEDGEMENT_MS = 220;
+const PERSISTENT_RETRY_COOLDOWN_MS = 30_000;
+const PERSISTENT_RETRY_STORAGE_KEY = 'remnote-smart-tts-persistent-retry-after';
+
+function persistentSpeechIsCoolingDown(): boolean {
+  try {
+    return Number(window.sessionStorage.getItem(PERSISTENT_RETRY_STORAGE_KEY) || 0) > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function pausePersistentSpeechRetry(retryAfter = Date.now() + PERSISTENT_RETRY_COOLDOWN_MS): void {
+  try {
+    window.sessionStorage.setItem(
+      PERSISTENT_RETRY_STORAGE_KEY,
+      String(retryAfter),
+    );
+  } catch {
+    // Some RemNote sandbox modes disable sessionStorage. The short timeout
+    // still prevents a large delay even when the cooldown cannot be saved.
+  }
+}
+
+function clearPersistentSpeechRetry(): void {
+  try {
+    window.sessionStorage.removeItem(PERSISTENT_RETRY_STORAGE_KEY);
+  } catch {
+    // Storage is only a latency optimization, never a playback requirement.
+  }
+}
 
 const controller = new SpeechController();
 
@@ -98,6 +129,7 @@ function FlashcardSpeechWidget() {
 
     if (message.status === 'accepted') {
       window.clearTimeout(pending.acknowledgementTimer);
+      clearPersistentSpeechRetry();
       return;
     }
     if (message.status === 'speaking') {
@@ -114,22 +146,33 @@ function FlashcardSpeechWidget() {
     }
 
     if (message.status === 'complete' && message.result) pending.resolve(message.result);
-    else pending.reject(new Error(message.error || 'Persistent speech playback failed.'));
+    else {
+      if (message.error?.startsWith('Chrome blocked autoplay')) {
+        // A hidden persistent iframe cannot acquire autoplay permission from
+        // the visible card. Skip it for the rest of this page session.
+        pausePersistentSpeechRetry(Number.MAX_SAFE_INTEGER);
+      }
+      pending.reject(new Error(message.error || 'Persistent speech playback failed.'));
+    }
   }, []);
 
   const requestPersistentSpeech = useCallback((content: SpeechContent): Promise<SpeechPlaybackResult> => {
+    if (persistentSpeechIsCoolingDown()) {
+      return Promise.reject(new Error(PERSISTENT_SPEECH_UNAVAILABLE));
+    }
     const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     activePersistentRequestIdRef.current = requestId;
 
     return new Promise((resolve, reject) => {
       const acknowledgementTimer = window.setTimeout(() => {
+        pausePersistentSpeechRetry();
         pendingSpeechRequestsRef.current.delete(requestId);
         if (activePersistentRequestIdRef.current === requestId) activePersistentRequestIdRef.current = null;
         // Stop a listener that acknowledged too late before using the local
         // compatibility path, preventing two voices from playing together.
         void plugin.messaging.broadcast(createSpeechStop(requestId));
         reject(new Error(PERSISTENT_SPEECH_UNAVAILABLE));
-      }, 1_200);
+      }, PERSISTENT_ACKNOWLEDGEMENT_MS);
       const completionTimer = window.setTimeout(() => {
         pendingSpeechRequestsRef.current.delete(requestId);
         if (activePersistentRequestIdRef.current === requestId) activePersistentRequestIdRef.current = null;
