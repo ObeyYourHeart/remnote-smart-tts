@@ -137,24 +137,34 @@ async function readClozeContextPath(
 
 function addClozeContext(
   text: string,
-  subject: string,
+  contextSegments: string[],
   language: SupportedLanguage,
 ): SpeechContent {
   const spokenText = text.trim();
-  const spokenSubject = subject.trim();
-  if (!spokenSubject || !spokenText) return { text: spokenText, language };
+  if (!spokenText) return { text: '', language };
 
-  // If the note author already wrote the complete path into the sentence,
-  // preserve it instead of producing an echo such as "Concept, Concept...".
-  if (spokenText.toLocaleLowerCase().includes(spokenSubject.toLocaleLowerCase())) {
+  const normalizedText = spokenText.toLocaleLowerCase();
+  const uniqueContextSegments = contextSegments
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .filter((segment, index, segments) => {
+      const normalizedSegment = segment.toLocaleLowerCase();
+      // Do not repeat context already written into the Cloze sentence or an
+      // earlier context segment.
+      return !normalizedText.includes(normalizedSegment) &&
+        segments.findIndex(
+          (candidate) => candidate.toLocaleLowerCase() === normalizedSegment,
+        ) === index;
+    });
+  if (uniqueContextSegments.length === 0) {
     return { text: spokenText, language };
   }
 
   const separator = language === 'en' ? '. ' : '。';
   return {
-    text: `${spokenSubject}${separator}${spokenText}`,
+    text: [...uniqueContextSegments, spokenText].join(separator),
     language,
-    segments: [spokenSubject, spokenText],
+    segments: [...uniqueContextSegments, spokenText],
   };
 }
 
@@ -219,10 +229,23 @@ export async function buildCardSpeechPlan(
         contextLanguage,
       )
       : '';
-    const question = addClozeContext(rendered.questionText, contextSubject, contextLanguage);
+    const contextSegments = contextSubject ? [contextSubject] : [];
+    // In an ordinary A/B Rem whose Cloze lives in backText, the front text is
+    // a necessary part of the question. For example:
+    // "附着在粗面内质网 ← 主要和 {{蛋白质}} 的合成有关".
+    // Concept/Descriptor Rems already include their front text in the path.
+    if (
+      clozeIsInBackText &&
+      rem.type !== RemType.CONCEPT &&
+      rem.type !== RemType.DESCRIPTOR
+    ) {
+      const localFrontText = piecesToPlainText(frontPieces);
+      if (localFrontText) contextSegments.push(localFrontText);
+    }
+    const question = addClozeContext(rendered.questionText, contextSegments, contextLanguage);
     const rawAnswer = rendered.answerText || piecesToPlainText(pieces);
-    const answerLanguage = detectLanguage(`${contextSubject} ${rawAnswer}`, contextLanguage);
-    const answer = addClozeContext(rawAnswer, contextSubject, answerLanguage);
+    const answerLanguage = detectLanguage(`${contextSegments.join(' ')} ${rawAnswer}`, contextLanguage);
+    const answer = addClozeContext(rawAnswer, contextSegments, answerLanguage);
 
     return {
       cardId: activeCardId,

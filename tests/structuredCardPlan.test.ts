@@ -116,6 +116,51 @@ test('inherits a complete Concept and Descriptor path for a child Cloze Rem', as
   assert.equal(plan?.answer.text, '细胞的结构的细胞核。遗传物质');
 });
 
+test('keeps the front of an ordinary A/B Rem whose Cloze is in the answer', async () => {
+  const conceptRem = {
+    _id: 'ribosome-concept',
+    type: 1,
+    text: ['核糖体'],
+  } as unknown as Rem;
+  const locationRem = {
+    _id: 'ribosome-location',
+    type: 2,
+    text: ['位置不同'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const clozeRem = {
+    _id: 'rough-er-cloze',
+    type: 0,
+    text: ['附着在粗面内质网'],
+    backText: [
+      '主要和',
+      { i: 'm', text: '蛋白质', cId: 'protein-cloze' },
+      '的合成有关',
+    ],
+    hasPowerup: async () => false,
+    isCardItem: async () => false,
+    getParentRem: async () => locationRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(clozeRem, { clozeId: 'protein-cloze' }),
+    { remId: clozeRem._id, cardId: 'protein-cloze-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(
+    plan?.question.text,
+    '核糖体的位置不同。附着在粗面内质网。主要和 什么 的合成有关',
+  );
+  assert.deepEqual(plan?.question.segments, [
+    '核糖体的位置不同',
+    '附着在粗面内质网',
+    '主要和 什么 的合成有关',
+  ]);
+  assert.equal(plan?.answer.text, '核糖体的位置不同。附着在粗面内质网。蛋白质');
+});
+
 test('builds a Concept Multi-Line plan even when the parent has no back text', async () => {
   const rem = {
     type: 1,
