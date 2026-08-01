@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildAzureSsml,
+  getAzureSynthesisTimeoutMs,
   getBrowserSpeechTimeoutMs,
   splitSpeechContentForAzure,
   splitSpeechText,
@@ -78,4 +79,32 @@ test('gives Browser Speech a bounded watchdog window', () => {
   assert.equal(getBrowserSpeechTimeoutMs('short text', 1), 12_000);
   assert.equal(getBrowserSpeechTimeoutMs('x'.repeat(1_000), 1), 90_000);
   assert.ok(getBrowserSpeechTimeoutMs('x'.repeat(120), 0.8) > 12_000);
+});
+
+test('allows Dragon HD and MAI voices to finish a cold Azure start', () => {
+  const dragonSettings = {
+    ...DEFAULT_SETTINGS,
+    azureVoices: {
+      ...DEFAULT_SETTINGS.azureVoices,
+      zh: 'zh-CN-Xiaoyi:DragonHDFlashLatestNeural',
+    },
+  };
+  const maiSettings = {
+    ...DEFAULT_SETTINGS,
+    azureVoices: {
+      ...DEFAULT_SETTINGS.azureVoices,
+      ja: 'ja-JP-Sakura:MAI-Voice-2-Flash',
+    },
+  };
+  const neuralSettings = {
+    ...DEFAULT_SETTINGS,
+    azureVoices: {
+      ...DEFAULT_SETTINGS.azureVoices,
+      en: 'en-US-JennyNeural',
+    },
+  };
+
+  assert.ok(getAzureSynthesisTimeoutMs({ text: '测试', language: 'zh' }, dragonSettings) >= 45_000);
+  assert.ok(getAzureSynthesisTimeoutMs({ text: 'テスト', language: 'ja' }, maiSettings) >= 45_000);
+  assert.ok(getAzureSynthesisTimeoutMs({ text: 'test', language: 'en' }, neuralSettings) < 45_000);
 });

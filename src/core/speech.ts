@@ -90,6 +90,28 @@ export function getBrowserSpeechTimeoutMs(text: string, rate: number): number {
 }
 
 /**
+ * Dragon HD and MAI models can have a noticeably longer first-token delay than
+ * ordinary Neural voices, especially when Azure starts a cold model. A paid
+ * S0 resource removes free-tier quota restrictions but does not remove that
+ * startup time, so do not fall back to a browser voice after only 15 seconds.
+ */
+export function getAzureSynthesisTimeoutMs(
+  content: SpeechContent,
+  settings: SpeechSettings,
+): number {
+  const languages = new Set(
+    (content.segments?.length ? content.segments : [{ language: content.language }])
+      .map((segment) => segment.language),
+  );
+  const selectedVoices = [...languages]
+    .map((language) => settings.azureVoices[language])
+    .join(' ');
+  const usesSlowStartingModel = /dragonhd|mai[-_: ]?voice/i.test(selectedVoices);
+  const baseTimeout = usesSlowStartingModel ? 45_000 : 25_000;
+  return Math.min(75_000, baseTimeout + Math.min(content.text.length * 40, 15_000));
+}
+
+/**
  * Batches long semantic cards while keeping segment order and language labels.
  * Ordinary cards remain one payload, so this adds no network round-trip to normal reviews.
  */
@@ -402,7 +424,7 @@ export class SpeechController {
         const synthesisTimeoutId = window.setTimeout(() => {
           this.disposeAzureSession();
           finish(() => reject(new Error('Azure speech synthesis timed out.')));
-        }, 15_000);
+        }, getAzureSynthesisTimeoutMs(payload, settings));
 
         synthesizer.speakSsmlAsync(
           ssml,
