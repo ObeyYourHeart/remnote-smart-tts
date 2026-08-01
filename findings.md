@@ -88,3 +88,9 @@
 - The old planner only allowed unmarked direct card items when the parent was a Concept or Descriptor. This ordinary List-Answer has an empty back side and ordered card-item children, but no usable parent powerup in the queue path, so it was rejected before `isListItem()` classification.
 - Version 0.7.4 treats direct SDK card-item markers as authoritative for any empty-back structured parent and can also climb from a current ordered child to an unmarked parent. The actual visible numbering remains presentation only and is not scraped.
 - Two post-fix Chrome reads timed out, so live visual confirmation was stopped rather than repeatedly controlling the user's page.
+
+## Incremental ordered-child behavior
+
+- RemNote tests each ordered child Rem separately. Resolving that child to its structured parent is necessary for the shared question, but discarding the child identity caused version 0.7.4 to synthesize the entire parent answer on the first reveal.
+- Version 0.7.5 preserves the ordered child Rem ID, finds its index among the parent's direct card items, and emits only one answer segment using the true parent-list ordinal.
+- A parent-level ordered card still emits the full ordered answer. This keeps full-set and incremental review behavior distinct.

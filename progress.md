@@ -61,3 +61,10 @@
 - Reproduced the disabled DEV widget on the user's exact `把大象放入冰箱的顺序` queue card. The card visibly exposes numbered, ordered answer items, but the current planner returns unsupported.
 - Version 0.7.4 now accepts direct SDK card-item markers for ordinary unmarked ordered cards and can climb from an ordered child to an unmarked parent. Local DEV serves the updated manifest; the first combined page reload/snapshot timed out before live visual confirmation.
 - Type checking, all 36 tests, RemNote manifest validation, and the production build pass. DEV serves version 0.7.4 and `PluginZip.zip` was regenerated; two Chrome read attempts timed out, so final visible-button confirmation remains for the user's refreshed queue page.
+
+## 0.7.5 incremental List-Answer speech
+
+- Preserved the active ordered child identity while resolving its parent card.
+- The second child fixture now produces exactly one answer segment: `第二，把大象放进去。`; parent-level ordered cards retain full-list speech.
+- Type checking and all 36 tests pass.
+- RemNote manifest validation and the production build pass; both DEV and `dist` report version 0.7.5, and `PluginZip.zip` was regenerated.

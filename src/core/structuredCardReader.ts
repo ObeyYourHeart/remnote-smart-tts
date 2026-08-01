@@ -5,6 +5,7 @@ import type { StructuredCardKind } from './structuredCards';
 export interface StructuredCardData {
   kind: StructuredCardKind;
   items: string[];
+  itemRemIds: string[];
 }
 
 async function hasMultiLinePowerup(rem: Rem): Promise<boolean> {
@@ -71,12 +72,12 @@ export async function readStructuredCard(
         const pieces = await richTextToPieces(plugin, child.text);
         const text = piecesToPlainText(pieces).trim();
         if (!text) return null;
-        return { text, isListItem: await child.isListItem() };
+        return { remId: child._id, text, isListItem: await child.isListItem() };
       }),
     );
 
     const cardItems = childData.filter(
-      (item): item is { text: string; isListItem: boolean } => item !== null,
+      (item): item is { remId: string; text: string; isListItem: boolean } => item !== null,
     );
     // `isCardItem()` is the actual child-level SDK marker. Some native
     // Descriptor Multi-Line cards expose these children without reporting the
@@ -88,6 +89,7 @@ export async function readStructuredCard(
       // Mixed structures stay Multi-Line instead of inventing a false order.
       kind: cardItems.every((item) => item.isListItem) ? 'list-answer' : 'multi-line',
       items: cardItems.map((item) => item.text),
+      itemRemIds: cardItems.map((item) => item.remId),
     };
   } catch (error) {
     console.warn('Could not read structured flashcard children.', error);

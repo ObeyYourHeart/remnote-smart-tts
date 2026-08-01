@@ -116,18 +116,29 @@ export async function buildCardSpeechPlan(
       structuredCard.items.join(' '),
       questionLanguage,
     );
-    const spokenItems = buildStructuredAnswer(
-      cardType === 'backward' ? undefined : subject,
-      structuredCard.items,
-      structuredCard.kind,
-      answerLanguage,
-    );
+    const activeListItemIndex = structuredCard.kind === 'list-answer' && structuredRoot
+      ? structuredCard.itemRemIds.indexOf(initialRem._id)
+      : -1;
+    const readsOneListItem = activeListItemIndex >= 0;
+    const answerItems = readsOneListItem
+      ? [structuredCard.items[activeListItemIndex]]
+      : structuredCard.items;
     const spokenSegments = buildStructuredAnswerSegments(
       cardType === 'backward' ? undefined : subject,
-      structuredCard.items,
+      answerItems,
       structuredCard.kind,
       answerLanguage,
+      readsOneListItem ? activeListItemIndex : 0,
+      !readsOneListItem,
     );
+    const spokenItems = readsOneListItem
+      ? spokenSegments.join(' ')
+      : buildStructuredAnswer(
+        cardType === 'backward' ? undefined : subject,
+        structuredCard.items,
+        structuredCard.kind,
+        answerLanguage,
+      );
     const kindPrefix = structuredCard.kind === 'list-answer' ? 'list-answer' : 'multi-line';
 
     if (cardType === 'backward') {

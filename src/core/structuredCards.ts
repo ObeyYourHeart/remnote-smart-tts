@@ -42,6 +42,8 @@ export function buildStructuredAnswerSegments(
   items: string[],
   kind: StructuredCardKind,
   language: SupportedLanguage,
+  ordinalOffset = 0,
+  includeIntroduction = true,
 ): string[] {
   const cleanItems = items.map(trimEndingSeparator).filter(Boolean);
   if (cleanItems.length === 0) return [];
@@ -55,10 +57,10 @@ export function buildStructuredAnswerSegments(
   const itemSegments = cleanItems.map((item, index) => {
     if (kind !== 'list-answer') return finishSentence(item, language);
     const separator = language === 'en' ? ', ' : '，';
-    return finishSentence(`${formatOrdinal(index, language)}${separator}${item}`, language);
+    return finishSentence(`${formatOrdinal(index + ordinalOffset, language)}${separator}${item}`, language);
   });
 
-  return [introduction, ...itemSegments];
+  return includeIntroduction ? [introduction, ...itemSegments] : itemSegments;
 }
 
 /**

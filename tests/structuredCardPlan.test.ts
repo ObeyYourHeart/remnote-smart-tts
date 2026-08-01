@@ -12,8 +12,9 @@ async function loadCardPlanner() {
   return (await import('../src/core/cards')).buildCardSpeechPlan;
 }
 
-function makeChild(text: string, isListItem: boolean): Rem {
+function makeChild(text: string, isListItem: boolean, remId = ''): Rem {
   return {
+    _id: remId,
     text: [text],
     isCardItem: async () => true,
     isListItem: async () => isListItem,
@@ -116,15 +117,15 @@ test('climbs from an ordered child when the parent powerup is omitted', async ()
     backText: [],
     hasPowerup: async () => false,
     getChildrenRem: async () => [
-      makeChild('打开冰箱门', true),
-      makeChild('把大象放进去', true),
-      makeChild('关上冰箱门', true),
+      makeChild('打开冰箱门', true, 'ordered-child-1'),
+      makeChild('把大象放进去', true, 'ordered-child-2'),
+      makeChild('关上冰箱门', true, 'ordered-child-3'),
     ],
   } as unknown as Rem;
   const queueChildRem = {
-    _id: 'ordered-child',
+    _id: 'ordered-child-2',
     type: 0,
-    text: ['打开冰箱门'],
+    text: ['把大象放进去'],
     backText: [],
     hasPowerup: async () => false,
     isCardItem: async () => true,
@@ -134,12 +135,14 @@ test('climbs from an ordered child when the parent powerup is omitted', async ()
   const buildCardSpeechPlan = await loadCardPlanner();
   const plan = await buildCardSpeechPlan(
     makePlugin(queueChildRem, 'forward', queueChildRem),
-    { remId: 'ordered-child', cardId: 'ordered-child-card', revealed: false },
+    { remId: 'ordered-child-2', cardId: 'ordered-child-card', revealed: false },
     DEFAULT_SETTINGS,
   );
 
   assert.equal(plan?.kind, 'list-answer-forward');
   assert.equal(plan?.question.text, '把大象放入冰箱的顺序');
+  assert.deepEqual(plan?.answer.segments, ['第二，把大象放进去。']);
+  assert.equal(plan?.answer.text, '第二，把大象放进去。');
 });
 
 test('keeps the parent Concept in a structured Descriptor prompt', async () => {

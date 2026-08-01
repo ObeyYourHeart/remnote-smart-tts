@@ -93,6 +93,15 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 - Capture the actual parent and child metadata used by this List-Answer card.
 - Repair ordered-card detection and segmented speech, add regression coverage, bump the patch version, build, verify live, and commit locally.
 
+### Phase 11: Incremental List-Answer speech
+
+**Status:** complete
+
+- Preserve the active child Rem when resolving an ordered card to its parent.
+- Speak only the active child answer with its true parent-list ordinal.
+- Keep full-list speech for cards that genuinely reveal the whole ordered set.
+- Add regressions, bump the patch version, run verification, build, and commit locally without pushing GitHub.
+
 ## Constraints
 
 - Do not control the user's Chrome unless explicitly requested.
