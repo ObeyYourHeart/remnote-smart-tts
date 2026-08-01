@@ -73,6 +73,44 @@ test('reads a Cloze in a Descriptor answer with its Concept and Descriptor', asy
   assert.deepEqual(plan?.answer.segments?.map((segment) => segment.text), ['叶绿体的结构', '基质中含有DNA。']);
 });
 
+test('joins a Descriptor value Cloze to its Concept with a natural copula', async () => {
+  const conceptRem = {
+    _id: 'protein-concept',
+    type: 1,
+    text: ['蛋白质'],
+  } as unknown as Rem;
+  const descriptorRem = {
+    _id: 'denaturation-conditions-descriptor',
+    type: 2,
+    text: ['变性条件'],
+    backText: [
+      { i: 'm', text: '高温', cId: 'heat-cloze' },
+      '、',
+      { i: 'm', text: '过酸', cId: 'acid-cloze' },
+      '、',
+      { i: 'm', text: '过碱', cId: 'alkali-cloze' },
+      '和',
+      { i: 'm', text: '重金属盐', cId: 'heavy-metal-cloze' },
+    ],
+    hasPowerup: async () => false,
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(descriptorRem, { clozeId: 'heavy-metal-cloze' }),
+    { remId: descriptorRem._id, cardId: 'conditions-cloze-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'cloze');
+  assert.equal(plan?.question.text, '蛋白质的变性条件是高温、过酸、过碱和什么');
+  assert.deepEqual(plan?.question.segments?.map((segment) => segment.text), [
+    '蛋白质的变性条件是高温、过酸、过碱和什么',
+  ]);
+  assert.equal(plan?.answer.text, '蛋白质的变性条件是高温、过酸、过碱和重金属盐');
+});
+
 test('inherits a complete Concept and Descriptor path for a child Cloze Rem', async () => {
   const conceptRem = {
     _id: 'cell-concept',

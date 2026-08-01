@@ -13,7 +13,13 @@ import {
   buildStructuredAnswer,
   buildStructuredAnswerSegments,
 } from './structuredCards';
-import type { CardSpeechPlan, SpeechContent, SpeechSettings, SupportedLanguage } from './types';
+import type {
+  CardSpeechPlan,
+  RichTextPiece,
+  SpeechContent,
+  SpeechSettings,
+  SupportedLanguage,
+} from './types';
 
 type FlashcardContext = WidgetLocationContextDataMap[WidgetLocation.FlashcardUnder];
 
@@ -221,6 +227,52 @@ function addSpeechContext(
 }
 
 /**
+ * A Descriptor answer that begins with a Cloze item is the value of the
+ * Concept/Descriptor subject, not a separate sentence. Join it with the
+ * language's neutral copula so "蛋白质 + 变性条件 + Cloze list" becomes
+ * "蛋白质的变性条件是什么……" instead of two disconnected fragments.
+ */
+function addSemanticValueContext(
+  subject: string,
+  value: string,
+  language: SupportedLanguage,
+): SpeechContent {
+  const spokenSubject = subject.trim().replace(/[。！？!?：:；;]+$/u, '');
+  const spokenValue = value.trim();
+  if (!spokenSubject) return { text: spokenValue, language };
+
+  // Cloze placeholders are surrounded with spaces while rich text is parsed.
+  // Keep English spacing, but remove artificial gaps between CJK characters
+  // and punctuation before sending the completed sentence to TTS.
+  const joinedValue = language === 'en'
+    ? spokenValue
+    : spokenValue.replace(
+      /([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}、，。；：！？])\s+(?=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}、，。；：！？])/gu,
+      '$1',
+    );
+
+  const text = language === 'en'
+    ? `${spokenSubject} is ${joinedValue}`
+    : language === 'ja'
+      ? `${spokenSubject}は${joinedValue}`
+      : `${spokenSubject}是${joinedValue}`;
+
+  return {
+    text,
+    language,
+    segments: [{ text, language: detectLanguage(text, language) }],
+  };
+}
+
+function startsWithClozeValue(pieces: RichTextPiece[]): boolean {
+  const firstMeaningfulPiece = pieces.find((piece) => piece.text.trim().length > 0);
+  // RemNote can test each Cloze in a list as a separate card. The first list
+  // item may therefore be a different, currently revealed Cloze, but the whole
+  // back text is still the Descriptor's value and needs the same connector.
+  return Boolean(firstMeaningfulPiece?.clozeId);
+}
+
+/**
  * Converts RemNote card metadata into the exact question/answer pair the speech layer needs.
  */
 export async function buildCardSpeechPlan(
@@ -296,13 +348,25 @@ export async function buildCardSpeechPlan(
       const localFrontText = piecesToPlainText(frontPieces);
       if (localFrontText) contextSegments.push(localFrontText);
     }
-    const question = addSpeechContext(rendered.questionText, contextSegments, contextLanguage);
+    const isSemanticValueCloze = Boolean(
+      contextPath &&
+      contextSubject &&
+      contextPath.contextTexts.length === 0 &&
+      clozeIsInBackText &&
+      (rem.type === RemType.CONCEPT || rem.type === RemType.DESCRIPTOR) &&
+      startsWithClozeValue(pieces),
+    );
+    const question = isSemanticValueCloze
+      ? addSemanticValueContext(contextSubject, rendered.questionText, contextLanguage)
+      : addSpeechContext(rendered.questionText, contextSegments, contextLanguage);
     // Read the completed sentence after reveal instead of speaking only the
     // missing word. This keeps an answer meaningful without looking at the
     // screen: "主要和蛋白质的合成有关", not merely "蛋白质".
     const rawAnswer = piecesToPlainText(pieces) || rendered.answerText;
     const answerLanguage = detectLanguage(`${contextSegments.join(' ')} ${rawAnswer}`, contextLanguage);
-    const answer = addSpeechContext(rawAnswer, contextSegments, answerLanguage);
+    const answer = isSemanticValueCloze
+      ? addSemanticValueContext(contextSubject, rawAnswer, answerLanguage)
+      : addSpeechContext(rawAnswer, contextSegments, answerLanguage);
 
     return {
       cardId: activeCardId,
