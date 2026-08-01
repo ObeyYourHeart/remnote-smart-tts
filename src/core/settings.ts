@@ -82,7 +82,7 @@ export async function readSettings(plugin: RNPlugin): Promise<SpeechSettings> {
     ]);
     return normalizeSettings({ ...saved, ...nativeSettings });
   } catch (error) {
-    console.error('Smart Flashcard TTS could not read settings.', error);
+    console.error('RemNote Smart TTS could not read settings.', error);
     return DEFAULT_SETTINGS;
   }
 }
@@ -95,7 +95,7 @@ export async function readAzureKey(plugin: RNPlugin): Promise<string> {
   try {
     return (await plugin.storage.getLocal<string>(AZURE_KEY_STORAGE_KEY))?.trim() ?? '';
   } catch (error) {
-    console.error('Smart Flashcard TTS could not read the local Azure key.', error);
+    console.error('RemNote Smart TTS could not read the local Azure key.', error);
     return '';
   }
 }

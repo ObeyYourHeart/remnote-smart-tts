@@ -43,7 +43,7 @@ export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
   });
   await plugin.settings.registerBooleanSetting({
     id: NATIVE_SETTING_IDS.enabled,
-    title: 'Enable Smart Flashcard TTS / 启用智能卡片朗读',
+    title: 'Enable RemNote Smart TTS / 启用 RemNote 智能朗读',
     description: 'Show the compact player and allow card speech. / 显示极简播放器并允许卡片朗读。',
     defaultValue: true,
   });
@@ -56,7 +56,7 @@ export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
   await plugin.settings.registerDropdownSetting({
     id: NATIVE_SETTING_IDS.provider,
     title: 'Voice provider / 声音来源',
-    description: 'Browser voices are free. Azure Neural supports Xiaoxiao with your own Speech resource. / 浏览器声音免费；Azure Neural 可使用你自己的晓晓语音服务。',
+    description: 'Browser voices are free. External providers use your own account and credentials. / 浏览器声音免费；外部语音服务使用你自己的账户与凭据。',
     defaultValue: 'browser',
     options: [
       { key: 'browser', label: 'Browser voice / 浏览器声音', value: 'browser' },

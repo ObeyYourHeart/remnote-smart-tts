@@ -38,7 +38,7 @@ async function syncQueueAppearance(plugin: ReactRNPlugin): Promise<void> {
     await plugin.app.registerCSS(OFFICIAL_TTS_CSS_ID, queueCss);
     lastReplaceControls = replaceControls;
   } catch (error) {
-    console.error('Smart Flashcard TTS could not update the queue appearance.', error);
+    console.error('RemNote Smart TTS could not update the queue appearance.', error);
   }
 }
 
@@ -60,7 +60,7 @@ async function onActivate(plugin: ReactRNPlugin) {
 
   await plugin.app.registerCommand({
     id: 'card-speech-open-settings',
-    name: 'Smart Flashcard TTS · Advanced Voice Setup / 高级声音设置',
+    name: 'RemNote Smart TTS · Advanced Voice Setup / 高级声音设置',
     description: 'Configure local Azure credentials, choose voices, and preview Chinese, English, or Japanese speech.',
     action: async () => plugin.widget.openPopup('settings'),
   });

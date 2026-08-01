@@ -8,3 +8,6 @@ preview-dist
 dev-server*.log
 __pycache__
 *.pyc
+task_plan.md
+findings.md
+progress.md

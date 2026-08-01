@@ -56,7 +56,7 @@ function FlashcardSpeechWidget() {
       if (nextSettings.provider === 'azure') {
         // Load the Azure runtime while RemNote finishes rendering the card.
         void preloadAzureSpeechSdk().catch((error) => {
-          console.error('Smart Flashcard TTS could not preload Azure Speech.', error);
+          console.error('RemNote Smart TTS could not preload Azure Speech.', error);
         });
       }
       const nextPlan = await buildCardSpeechPlan(plugin, nextContext, nextSettings, {
@@ -70,7 +70,7 @@ function FlashcardSpeechWidget() {
       setPlan(nextPlan);
       setStatus('idle');
     } catch (error) {
-      console.error('Smart Flashcard TTS could not inspect the current card.', error);
+      console.error('RemNote Smart TTS could not inspect the current card.', error);
       setStatus('error');
     }
   }, [plugin]);
@@ -94,7 +94,7 @@ function FlashcardSpeechWidget() {
       }
       setStatus('idle');
     } catch (error) {
-      console.error('Smart Flashcard TTS playback failed.', error);
+      console.error('RemNote Smart TTS playback failed.', error);
       setStatus('error');
       const rawMessage = error instanceof Error ? error.message : String(error);
       const safeMessage = azureKey ? rawMessage.replaceAll(azureKey, '[redacted]') : rawMessage;
@@ -109,7 +109,7 @@ function FlashcardSpeechWidget() {
   useEffect(() => {
     void refresh(true);
 
-    const listenerKey = `smart-flashcard-tts-${Date.now()}-${Math.random()}`;
+    const listenerKey = `remnote-smart-tts-${Date.now()}-${Math.random()}`;
     // RemNote emits RevealAnswer just before the revealed card context settles.
     // Read it again shortly afterwards so answer autoplay receives the answer side.
     const handleReveal = () => window.setTimeout(() => void refresh(true), 120);

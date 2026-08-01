@@ -74,7 +74,7 @@ export function SpeechControl({
         ? stopLabel
         : playLabel;
   return (
-    <div className="speech-control" data-status={status} aria-label="Smart Flashcard TTS" aria-live="polite">
+    <div className="speech-control" data-status={status} aria-label="RemNote Smart TTS" aria-live="polite">
       <button
         type="button"
         className="speech-control__primary"

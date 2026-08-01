@@ -19,11 +19,11 @@ const LANGUAGE_META: Record<SupportedLanguage, { english: string; native: string
 
 const COPY = {
   en: {
-    eyebrow: 'SMART FLASHCARD TTS',
+    eyebrow: 'REMNOTE SMART TTS',
     title: 'Advanced voice setup',
     subtitle: 'Choose and test the voice used for each card language.',
     nativeNoticeTitle: 'Everyday settings are now built into RemNote',
-    nativeNoticeBody: 'Open Settings → Plugins → Smart Flashcard TTS for autoplay, Cloze prompts, rate, volume, and provider.',
+    nativeNoticeBody: 'Open Settings → Plugins → RemNote Smart TTS for autoplay, Cloze prompts, rate, volume, and provider.',
     provider: 'Active provider',
     browser: 'Browser voice',
     azure: 'Azure Neural Voice',
@@ -55,7 +55,7 @@ const COPY = {
     title: '高级声音设置',
     subtitle: '为每种卡片语言选择并试听声音。',
     nativeNoticeTitle: '日常设置现已集成到 RemNote',
-    nativeNoticeBody: '前往 设置 → 插件 → Smart Flashcard TTS 调整自动朗读、Cloze 用词、语速、音量和声音来源。',
+    nativeNoticeBody: '前往 设置 → 插件 → RemNote Smart TTS 调整自动朗读、Cloze 用词、语速、音量和声音来源。',
     provider: '当前声音来源',
     browser: '浏览器声音',
     azure: 'Azure Neural Voice',
@@ -174,7 +174,7 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
         setCatalogStatus('ready');
       }).catch((error) => {
         if (disposed) return;
-        console.warn('Smart Flashcard TTS could not load the Azure voice catalog.', error);
+        console.warn('RemNote Smart TTS could not load the Azure voice catalog.', error);
         setAzureCatalog(CURATED_AZURE_VOICES);
         setCatalogStatus('error');
       }).finally(() => {
@@ -219,7 +219,7 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
       await Promise.all([writeSettings(plugin, settings), writeAzureKey(plugin, azureKey)]);
       await plugin.app.toast(copy.saved);
     } catch (error) {
-      console.error('Smart Flashcard TTS could not save advanced voice settings.', error);
+      console.error('RemNote Smart TTS could not save advanced voice settings.', error);
       await plugin.app.toast(copy.saveFailed);
     } finally {
       setSaving(false);
@@ -236,7 +236,7 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
       );
       if (result.fallbackReason) await plugin.app.toast(copy.fallback);
     } catch (error) {
-      console.error('Smart Flashcard TTS voice preview failed.', error);
+      console.error('RemNote Smart TTS voice preview failed.', error);
       await plugin.app.toast(copy.previewFailed);
     } finally {
       setTestingLanguage(null);
