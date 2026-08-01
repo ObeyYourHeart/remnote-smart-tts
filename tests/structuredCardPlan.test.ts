@@ -332,3 +332,111 @@ test('keeps a Descriptor card when its Concept parent owns Multi-Line cards', as
   assert.equal(plan?.question.text, '市销率的算法是什么？');
   assert.equal(plan?.answer.text, '市销率的算法是市销率 = 市值 ÷ 营业收入');
 });
+
+test('reads a normal Descriptor through every ancestor back to its Concept', async () => {
+  const conceptRem = { _id: 'chloroplast', type: 1, text: ['叶绿体'] } as unknown as Rem;
+  const structureRem = {
+    _id: 'structure',
+    type: 2,
+    text: ['结构'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const granumRem = {
+    _id: 'granum',
+    type: 2,
+    text: ['基粒'],
+    backText: ['由类囊体堆叠形成'],
+    hasPowerup: async () => false,
+    getParentRem: async () => structureRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(granumRem),
+    { remId: 'granum', cardId: 'granum-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'descriptor-forward');
+  assert.equal(plan?.question.text, '叶绿体的结构的基粒是什么？');
+  assert.equal(plan?.answer.text, '叶绿体的结构的基粒是由类囊体堆叠形成');
+});
+
+test('keeps a complete deep Descriptor path in a Multi-Line prompt', async () => {
+  const conceptRem = { _id: 'chloroplast-deep', type: 1, text: ['叶绿体'] } as unknown as Rem;
+  const structureRem = {
+    _id: 'structure-deep',
+    type: 2,
+    text: ['结构'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const granumRem = {
+    _id: 'granum-deep',
+    type: 2,
+    text: ['基粒'],
+    getParentRem: async () => structureRem,
+  } as unknown as Rem;
+  const compositionRem = {
+    _id: 'composition-deep',
+    type: 2,
+    text: ['组成'],
+    backText: [],
+    hasPowerup: async () => true,
+    getParentRem: async () => granumRem,
+    getChildrenRem: async () => [
+      makeChild('类囊体', false, 'thylakoid'),
+      makeChild('叶绿素', false, 'chlorophyll'),
+    ],
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(compositionRem),
+    { remId: 'composition-deep', cardId: 'composition-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'multi-line-forward');
+  assert.equal(plan?.question.text, '叶绿体的结构的基粒的组成包括什么？');
+  assert.equal(plan?.answer.text, '叶绿体的结构的基粒的组成包括：类囊体；叶绿素。');
+});
+
+test('keeps a complete deep Descriptor path in an ordered question', async () => {
+  const conceptRem = { _id: 'chloroplast-order', type: 1, text: ['叶绿体'] } as unknown as Rem;
+  const structureRem = {
+    _id: 'structure-order',
+    type: 2,
+    text: ['结构'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const photosynthesisRem = {
+    _id: 'photosynthesis-order',
+    type: 2,
+    text: ['光反应'],
+    getParentRem: async () => structureRem,
+  } as unknown as Rem;
+  const stepsRem = {
+    _id: 'steps-order',
+    type: 2,
+    text: ['步骤'],
+    backText: [],
+    hasPowerup: async () => true,
+    getParentRem: async () => photosynthesisRem,
+    getChildrenRem: async () => [
+      makeChild('吸收光能', true, 'light-step-1'),
+      makeChild('产生能量载体', true, 'light-step-2'),
+    ],
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(stepsRem),
+    { remId: 'steps-order', cardId: 'steps-card', revealed: true },
+    DEFAULT_SETTINGS,
+    { structuredItemIndex: 1 },
+  );
+
+  assert.equal(plan?.kind, 'list-answer-forward');
+  assert.equal(plan?.question.text, '叶绿体的结构的光反应的第二步是什么？');
+  assert.deepEqual(plan?.answer.segments, ['第二，产生能量载体。']);
+});

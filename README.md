@@ -17,6 +17,7 @@ RemNote Smart TTS is a structure-aware speech plugin for the RemNote review queu
 | Basic | Reads the visible question, then the answer after reveal; forward and backward directions are supported. |
 | Concept | Turns the Concept into a complete question and answer, such as “What is the P/E ratio?” |
 | Descriptor | Includes the parent Concept, such as “What is the formula of the P/E ratio?” |
+| Nested Descriptor path | Keeps every Descriptor from the nearest Concept through deeply nested sub-descriptors. |
 | Cloze | Replaces only the active blank with `什么`, `what`, or `なに`. |
 | Multi-Line / Set | Asks what the set includes, then reads answer children as separate semantic sentences. |
 | Ordered List-Answer | Asks for the current step and reads only the item currently being tested. |
@@ -95,6 +96,7 @@ RemNote Smart TTS 是一个理解卡片结构的 RemNote 复习队列朗读插�
 | Basic | 进入卡片时朗读问题，揭晓后朗读答案；支持正向和反向。 |
 | Concept | 把概念组织成完整问答，例如“市盈率是什么？”“市盈率是……”。 |
 | Descriptor | 带上所属 Concept，例如“市盈率的算法是什么？”“市盈率的算法是……”。 |
+| 嵌套 Descriptor 路径 | 从最近的 Concept 开始保留每一级 Descriptor，不截断更深子级。 |
 | Cloze | 只把当前挖空替换为 `什么`、`what` 或 `なに`。 |
 | Multi-Line / Set | 用“包括什么”提问，再把各个答案 Rem 作为独立语义句依次朗读。 |
 | Ordered List-Answer | 询问当前第几步，并只朗读当前正在测试的项目。 |

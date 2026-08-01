@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildDescriptorSpeech } from '../src/core/descriptor';
+import {
+  buildDescriptorPathSpeech,
+  buildDescriptorPathSubject,
+  buildDescriptorSpeech,
+} from '../src/core/descriptor';
 
 test('adds the parent Concept to a Chinese Descriptor question and answer', () => {
   const speech = buildDescriptorSpeech(
@@ -32,4 +36,28 @@ test('builds natural English and Japanese Descriptor templates', () => {
   assert.equal(english.answer, 'The formula of price-to-earnings ratio is price divided by earnings per share.');
   assert.equal(japanese.question, '株価収益率の計算式は何ですか？');
   assert.equal(japanese.answer, '株価収益率の計算式は株価を一株当たり利益で割ったものです。');
+});
+
+test('keeps every nested Descriptor level in Chinese, English, and Japanese', () => {
+  assert.equal(
+    buildDescriptorPathSubject('叶绿体', ['结构', '基粒', '组成'], 'zh'),
+    '叶绿体的结构的基粒的组成',
+  );
+  assert.equal(
+    buildDescriptorPathSubject('chloroplast', ['structure', 'granum', 'composition'], 'en'),
+    'the composition of the granum of the structure of chloroplast',
+  );
+  assert.equal(
+    buildDescriptorPathSubject('葉緑体', ['構造', 'グラナ', '構成'], 'ja'),
+    '葉緑体の構造のグラナの構成',
+  );
+
+  const speech = buildDescriptorPathSpeech(
+    '叶绿体',
+    ['结构', '基粒'],
+    '由类囊体堆叠形成',
+    'zh',
+  );
+  assert.equal(speech.question, '叶绿体的结构的基粒是什么？');
+  assert.equal(speech.answer, '叶绿体的结构的基粒是由类囊体堆叠形成');
 });

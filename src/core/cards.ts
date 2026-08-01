@@ -1,6 +1,9 @@
 import { RemType, type Card, type CardType, type Rem, type RNPlugin, type WidgetLocationContextDataMap, WidgetLocation } from '@remnote/plugin-sdk';
 import { buildConceptSpeech } from './concept';
-import { buildDescriptorSpeech, buildDescriptorSubject } from './descriptor';
+import {
+  buildDescriptorPathSpeech,
+  buildDescriptorPathSubject,
+} from './descriptor';
 import { detectLanguage } from './language';
 import { piecesToPlainText, renderActiveCloze, richTextToPieces } from './richText';
 import { readStructuredCard, resolveStructuredCardRoot } from './structuredCardReader';
@@ -17,6 +20,11 @@ type FlashcardContext = WidgetLocationContextDataMap[WidgetLocation.FlashcardUnd
 interface CardSpeechPlanOptions {
   /** Zero-based ordered child index maintained by the queue widget. */
   structuredItemIndex?: number;
+}
+
+interface DescriptorPath {
+  conceptText: string;
+  descriptorTexts: string[];
 }
 
 async function readPlainText(plugin: RNPlugin, richText: Parameters<typeof richTextToPieces>[1]): Promise<string> {
@@ -37,6 +45,39 @@ async function readCardRem(plugin: RNPlugin, card: Card | undefined): Promise<Re
     console.warn('Could not resolve the Rem attached to the current card.', error);
     return undefined;
   }
+}
+
+/** Walks from a nested Descriptor to its nearest Concept without dropping levels. */
+async function readDescriptorPath(plugin: RNPlugin, descriptorRem: Rem): Promise<DescriptorPath | null> {
+  const descriptorTexts: string[] = [];
+  const visitedRemIds = new Set<string>();
+  let currentRem: Rem | undefined = descriptorRem;
+
+  // The limit protects playback from malformed or cyclic imported outlines.
+  for (let depth = 0; currentRem && depth < 64; depth += 1) {
+    if (currentRem._id) {
+      if (visitedRemIds.has(currentRem._id)) return null;
+      visitedRemIds.add(currentRem._id);
+    }
+
+    const currentText = await readPlainText(plugin, currentRem.text);
+    if (currentRem.type === RemType.CONCEPT) {
+      return currentText && descriptorTexts.length > 0
+        ? { conceptText: currentText, descriptorTexts }
+        : null;
+    }
+    if (currentRem.type !== RemType.DESCRIPTOR || !currentText) return null;
+
+    descriptorTexts.unshift(currentText);
+    try {
+      currentRem = await currentRem.getParentRem();
+    } catch (error) {
+      console.warn('Could not read a parent in the nested Descriptor path.', error);
+      return null;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -104,7 +145,7 @@ export async function buildCardSpeechPlan(
     let questionText = frontText;
     let subject: string | undefined;
     let backwardAnswer = frontText;
-    const questionLanguage = detectLanguage(frontText, settings.defaultLanguage);
+    let questionLanguage = detectLanguage(frontText, settings.defaultLanguage);
 
     if (rem.type === RemType.CONCEPT) {
       const conceptSpeech = buildConceptSpeech(frontText, '', questionLanguage);
@@ -112,14 +153,26 @@ export async function buildCardSpeechPlan(
       subject = frontText;
       backwardAnswer = conceptSpeech.backwardAnswer;
     } else if (rem.type === RemType.DESCRIPTOR) {
-      const parentRem = await rem.getParentRem();
-      const parentText = await readPlainText(plugin, parentRem?.text);
-      if (parentRem?.type === RemType.CONCEPT && parentText) {
-        questionText = buildDescriptorSpeech(parentText, frontText, '', questionLanguage).question;
-        subject = buildDescriptorSubject(parentText, frontText, questionLanguage);
-        // Preserve the existing reverse Descriptor behavior: identify the
-        // parent Concept represented by the Descriptor and its child values.
-        backwardAnswer = parentText;
+      const descriptorPath = await readDescriptorPath(plugin, rem);
+      if (descriptorPath) {
+        questionLanguage = detectLanguage(
+          `${descriptorPath.conceptText} ${descriptorPath.descriptorTexts.join(' ')}`,
+          questionLanguage,
+        );
+        subject = buildDescriptorPathSubject(
+          descriptorPath.conceptText,
+          descriptorPath.descriptorTexts,
+          questionLanguage,
+        );
+        questionText = buildDescriptorPathSpeech(
+          descriptorPath.conceptText,
+          descriptorPath.descriptorTexts,
+          '',
+          questionLanguage,
+        ).question;
+        // A nested reverse card identifies the complete path instead of
+        // collapsing every Sub-descriptor back to the same Concept.
+        backwardAnswer = subject;
       }
     }
 
@@ -141,7 +194,7 @@ export async function buildCardSpeechPlan(
         : -1;
     const readsOneListItem = activeListItemIndex >= 0;
     if (readsOneListItem && cardType !== 'backward') {
-      questionText = buildOrderedItemQuestion(frontText, activeListItemIndex, questionLanguage);
+      questionText = buildOrderedItemQuestion(subject || frontText, activeListItemIndex, questionLanguage);
     } else if (structuredCard.kind === 'multi-line' && cardType !== 'backward') {
       questionText = buildMultiLineQuestion(subject || frontText, questionLanguage);
     }
@@ -214,13 +267,21 @@ export async function buildCardSpeechPlan(
   }
 
   if (rem.type === RemType.DESCRIPTOR) {
-    const parentRem = await rem.getParentRem();
-    const parentText = await readPlainText(plugin, parentRem?.text);
-    // A normal Concept + Descriptor pair gets the semantic speech template.
+    const descriptorPath = await readDescriptorPath(plugin, rem);
+    // A Descriptor path rooted in a Concept gets a self-contained prompt.
     // Orphaned or unusual Descriptors safely fall through to ordinary A/B logic.
-    if (parentRem?.type === RemType.CONCEPT && parentText && frontText && backText) {
+    if (descriptorPath && frontText && backText) {
+      const descriptorLanguage = detectLanguage(
+        `${descriptorPath.conceptText} ${descriptorPath.descriptorTexts.join(' ')}`,
+        settings.defaultLanguage,
+      );
+      const descriptorSubject = buildDescriptorPathSubject(
+        descriptorPath.conceptText,
+        descriptorPath.descriptorTexts,
+        descriptorLanguage,
+      );
       if (cardType === 'backward') {
-        // Reverse Descriptor cards ask for the parent Concept represented by the
+        // A nested reverse card names the complete path represented by the
         // Descriptor and its value.
         const descriptorQuestion = [frontText, backText].filter(Boolean).join('：');
         const questionLanguage = detectLanguage(descriptorQuestion, settings.defaultLanguage);
@@ -229,17 +290,16 @@ export async function buildCardSpeechPlan(
           remId: context.remId,
           kind: 'descriptor-backward',
           question: { text: descriptorQuestion, language: questionLanguage },
-          answer: { text: parentText, language: detectLanguage(parentText, questionLanguage) },
+          answer: {
+            text: descriptorSubject,
+            language: detectLanguage(descriptorSubject, questionLanguage),
+          },
         };
       }
 
-      const descriptorLanguage = detectLanguage(
-        `${parentText} ${frontText}`,
-        settings.defaultLanguage,
-      );
-      const descriptorSpeech = buildDescriptorSpeech(
-        parentText,
-        frontText,
+      const descriptorSpeech = buildDescriptorPathSpeech(
+        descriptorPath.conceptText,
+        descriptorPath.descriptorTexts,
         backText,
         descriptorLanguage,
       );
