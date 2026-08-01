@@ -688,3 +688,307 @@ test('keeps a complete deep Descriptor path in an ordered question', async () =>
   assert.equal(plan?.question.text, '叶绿体的结构的光反应的第二步是什么？');
   assert.deepEqual(plan?.answer.segments?.map((segment) => segment.text), ['第二，产生能量载体。']);
 });
+
+test('keeps CDF context for an ordinary A/B leaf below nested Descriptors', async () => {
+  const conceptRem = { _id: 'ribosome-ab-concept', type: 1, text: ['核糖体'] } as unknown as Rem;
+  const locationRem = {
+    _id: 'ribosome-ab-location',
+    type: 2,
+    text: ['位置不同'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const ordinaryRem = {
+    _id: 'ribosome-ab-leaf',
+    type: 0,
+    text: ['附着在粗面内质网'],
+    backText: ['主要参与蛋白质的合成'],
+    hasPowerup: async () => false,
+    isCardItem: async () => false,
+    getParentRem: async () => locationRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(ordinaryRem),
+    { remId: ordinaryRem._id, cardId: 'ribosome-ab-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'forward');
+  assert.equal(plan?.question.text, '核糖体的位置不同。附着在粗面内质网');
+  assert.deepEqual(plan?.question.segments?.map((segment) => segment.text), [
+    '核糖体的位置不同',
+    '附着在粗面内质网',
+  ]);
+  assert.equal(
+    plan?.answer.text,
+    '核糖体的位置不同。附着在粗面内质网。主要参与蛋白质的合成',
+  );
+});
+
+test('keeps ordinary grouping Rems between a CDF path and a Cloze', async () => {
+  const conceptRem = { _id: 'ribosome-group-concept', type: 1, text: ['核糖体'] } as unknown as Rem;
+  const locationRem = {
+    _id: 'ribosome-group-location',
+    type: 2,
+    text: ['位置不同'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const groupRem = {
+    _id: 'ribosome-grouping-rem',
+    type: 0,
+    text: ['附着方式'],
+    getParentRem: async () => locationRem,
+  } as unknown as Rem;
+  const clozeRem = {
+    _id: 'ribosome-group-cloze',
+    type: 0,
+    text: [
+      '主要和',
+      { i: 'm', text: '蛋白质', cId: 'grouped-protein-cloze' },
+      '的合成有关',
+    ],
+    backText: [],
+    hasPowerup: async () => false,
+    isCardItem: async () => false,
+    getParentRem: async () => groupRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(clozeRem, { clozeId: 'grouped-protein-cloze' }),
+    { remId: clozeRem._id, cardId: 'grouped-protein-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(
+    plan?.question.text,
+    '核糖体的位置不同。附着方式。主要和 什么 的合成有关',
+  );
+  assert.deepEqual(plan?.question.segments?.map((segment) => segment.text), [
+    '核糖体的位置不同',
+    '附着方式',
+    '主要和 什么 的合成有关',
+  ]);
+  assert.equal(
+    plan?.answer.text,
+    '核糖体的位置不同。附着方式。主要和蛋白质的合成有关',
+  );
+});
+
+test('keeps CDF context for a normal Multi-Line group below a Descriptor', async () => {
+  const conceptRem = { _id: 'ps-context-concept', type: 1, text: ['市销率'] } as unknown as Rem;
+  const defectsRem = {
+    _id: 'ps-context-defects',
+    type: 2,
+    text: ['缺陷'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const examplesRem = {
+    _id: 'ps-context-examples',
+    type: 0,
+    text: ['常见表现'],
+    backText: [],
+    hasPowerup: async () => true,
+    isCardItem: async () => false,
+    getParentRem: async () => defectsRem,
+    getChildrenRem: async () => [
+      makeChild('忽视利润水平', false, 'ps-example-1'),
+      makeChild('不考虑负债水平', false, 'ps-example-2'),
+    ],
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(examplesRem),
+    { remId: examplesRem._id, cardId: 'ps-context-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'multi-line-forward');
+  assert.equal(plan?.question.text, '市销率的缺陷。常见表现包括什么？');
+  assert.deepEqual(plan?.question.segments?.map((segment) => segment.text), [
+    '市销率的缺陷',
+    '常见表现包括什么？',
+  ]);
+  assert.equal(
+    plan?.answer.text,
+    '市销率的缺陷。常见表现包括：忽视利润水平；不考虑负债水平。',
+  );
+  assert.deepEqual(plan?.answer.segments?.map((segment) => segment.text), [
+    '市销率的缺陷',
+    '常见表现包括以下内容。',
+    '忽视利润水平。',
+    '不考虑负债水平。',
+  ]);
+});
+
+test('keeps CDF context for a normal ordered group below a Descriptor', async () => {
+  const conceptRem = { _id: 'cycle-context-concept', type: 1, text: ['光合作用'] } as unknown as Rem;
+  const lightReactionRem = {
+    _id: 'cycle-context-descriptor',
+    type: 2,
+    text: ['光反应'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const processRem = {
+    _id: 'cycle-context-process',
+    type: 0,
+    text: ['能量转换过程'],
+    backText: [],
+    hasPowerup: async () => true,
+    isCardItem: async () => false,
+    getParentRem: async () => lightReactionRem,
+    getChildrenRem: async () => [
+      makeChild('吸收光能', true, 'cycle-step-1'),
+      makeChild('产生能量载体', true, 'cycle-step-2'),
+    ],
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(processRem),
+    { remId: processRem._id, cardId: 'cycle-context-card', revealed: false },
+    DEFAULT_SETTINGS,
+    { structuredItemIndex: 1 },
+  );
+
+  assert.equal(plan?.kind, 'list-answer-forward');
+  assert.equal(plan?.question.text, '光合作用的光反应。能量转换过程的第二步是什么？');
+  assert.deepEqual(plan?.question.segments?.map((segment) => segment.text), [
+    '光合作用的光反应',
+    '能量转换过程的第二步是什么？',
+  ]);
+  assert.deepEqual(plan?.answer.segments?.map((segment) => segment.text), [
+    '光合作用的光反应',
+    '第二，产生能量载体。',
+  ]);
+});
+
+test('keeps CDF context for ordinary A/B cards in English and Japanese', async () => {
+  const cases = [
+    {
+      concept: 'chloroplast',
+      descriptor: 'structure',
+      front: 'granum',
+      back: 'a stack of thylakoids',
+      question: 'the structure of chloroplast. granum',
+      answer: 'the structure of chloroplast. granum. a stack of thylakoids',
+    },
+    {
+      concept: '葉緑体',
+      descriptor: '構造',
+      front: 'グラナ',
+      back: 'チラコイドが積み重なったもの',
+      question: '葉緑体の構造。グラナ',
+      answer: '葉緑体の構造。グラナ。チラコイドが積み重なったもの',
+    },
+  ] as const;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  for (const [index, cardCase] of cases.entries()) {
+    const conceptRem = {
+      _id: `localized-concept-${index}`,
+      type: 1,
+      text: [cardCase.concept],
+    } as unknown as Rem;
+    const descriptorRem = {
+      _id: `localized-descriptor-${index}`,
+      type: 2,
+      text: [cardCase.descriptor],
+      getParentRem: async () => conceptRem,
+    } as unknown as Rem;
+    const ordinaryRem = {
+      _id: `localized-leaf-${index}`,
+      type: 0,
+      text: [cardCase.front],
+      backText: [cardCase.back],
+      hasPowerup: async () => false,
+      isCardItem: async () => false,
+      getParentRem: async () => descriptorRem,
+    } as unknown as Rem;
+
+    const plan = await buildCardSpeechPlan(
+      makePlugin(ordinaryRem),
+      { remId: ordinaryRem._id, cardId: `localized-card-${index}`, revealed: false },
+      DEFAULT_SETTINGS,
+    );
+
+    assert.equal(plan?.question.text, cardCase.question);
+    assert.equal(plan?.answer.text, cardCase.answer);
+  }
+});
+
+test('keeps CDF context when an ordinary A/B card is tested backward', async () => {
+  const conceptRem = { _id: 'reverse-concept', type: 1, text: ['市盈率'] } as unknown as Rem;
+  const descriptorRem = {
+    _id: 'reverse-descriptor',
+    type: 2,
+    text: ['影响因素'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const ordinaryRem = {
+    _id: 'reverse-leaf',
+    type: 0,
+    text: ['无风险利率'],
+    backText: ['通常呈反向影响'],
+    hasPowerup: async () => false,
+    isCardItem: async () => false,
+    getParentRem: async () => descriptorRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(ordinaryRem, 'backward'),
+    { remId: ordinaryRem._id, cardId: 'reverse-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.question.text, '市盈率的影响因素。通常呈反向影响');
+  assert.equal(plan?.answer.text, '市盈率的影响因素。无风险利率');
+});
+
+test('keeps later Descriptor-looking levels separate after an ordinary CDF group', async () => {
+  const conceptRem = { _id: 'irregular-concept', type: 1, text: ['核糖体'] } as unknown as Rem;
+  const locationRem = {
+    _id: 'irregular-location',
+    type: 2,
+    text: ['位置'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const groupRem = {
+    _id: 'irregular-group',
+    type: 0,
+    text: ['附着类型'],
+    getParentRem: async () => locationRem,
+  } as unknown as Rem;
+  const laterDescriptorRem = {
+    _id: 'irregular-later-descriptor',
+    type: 2,
+    text: ['主要作用'],
+    getParentRem: async () => groupRem,
+  } as unknown as Rem;
+  const clozeRem = {
+    _id: 'irregular-cloze',
+    type: 0,
+    text: ['参与', { i: 'm', text: '蛋白质', cId: 'irregular-cloze-id' }, '合成'],
+    backText: [],
+    hasPowerup: async () => false,
+    isCardItem: async () => false,
+    getParentRem: async () => laterDescriptorRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(clozeRem, { clozeId: 'irregular-cloze-id' }),
+    { remId: clozeRem._id, cardId: 'irregular-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.deepEqual(plan?.question.segments?.map((segment) => segment.text), [
+    '核糖体的位置',
+    '附着类型',
+    '主要作用',
+    '参与 什么 合成',
+  ]);
+});

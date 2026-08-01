@@ -18,6 +18,7 @@ RemNote Smart TTS is a structure-aware speech plugin for the RemNote review queu
 | Concept | Turns the Concept into a complete question and answer, such as “What is the P/E ratio?” |
 | Descriptor | Includes the parent Concept, such as “What is the formula of the P/E ratio?” |
 | Nested Descriptor path | Keeps every Descriptor from the nearest Concept through deeply nested sub-descriptors. |
+| CDF descendants | Keeps the Concept/Descriptor subject when an ordinary A/B, Cloze, Multi-Line, or List-Answer card appears deeper in the outline. Ordinary grouping Rems are spoken as separate context sentences instead of being misclassified as Descriptors. |
 | Cloze | Replaces only the active blank with `什么`, `what`, or `なに`; nested Clozes read their full Concept/Descriptor path, answer-side Clozes keep the local A/B front, and revealed answers restore the complete sentence. |
 | Multi-Line / Set | Asks what the set includes, then reads answer children as separate semantic sentences. |
 | Ordered List-Answer | Asks for the current step and reads only the item currently being tested. |
@@ -98,6 +99,7 @@ RemNote Smart TTS 是一个理解卡片结构的 RemNote 复习队列朗读插�
 | Concept | 把概念组织成完整问答，例如“市盈率是什么？”“市盈率是……”。 |
 | Descriptor | 带上所属 Concept，例如“市盈率的算法是什么？”“市盈率的算法是……”。 |
 | 嵌套 Descriptor 路径 | 从最近的 Concept 开始保留每一级 Descriptor，不截断更深子级。 |
+| CDF 后代卡片 | 普通 A/B、Cloze、Multi-Line 或 List-Answer 位于 Concept/Descriptor 更深层时，仍会保留 CDF 主语；夹在其中的普通分组 Rem 会作为独立上下文句朗读，不会被误判成 Descriptor。 |
 | Cloze | 只把当前挖空替换为 `什么`、`what` 或 `なに`；嵌套 Cloze 会朗读完整 Concept/Descriptor 路径，答案侧 Cloze 会保留当前 A/B Rem 的问题侧，揭示答案后恢复并朗读完整句子。 |
 | Multi-Line / Set | 用“包括什么”提问，再把各个答案 Rem 作为独立语义句依次朗读。 |
 | Ordered List-Answer | 询问当前第几步，并只朗读当前正在测试的项目。 |

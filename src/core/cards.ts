@@ -27,6 +27,11 @@ interface DescriptorPath {
   descriptorTexts: string[];
 }
 
+interface CdfContextPath extends DescriptorPath {
+  /** Ordinary grouping Rems that appear after the semantic Descriptor chain. */
+  contextTexts: string[];
+}
+
 async function readPlainText(plugin: RNPlugin, richText: Parameters<typeof richTextToPieces>[1]): Promise<string> {
   return piecesToPlainText(await richTextToPieces(plugin, richText));
 }
@@ -81,6 +86,72 @@ async function readDescriptorPath(plugin: RNPlugin, descriptorRem: Rem): Promise
 }
 
 /**
+ * Reads the nearest Concept-Descriptor Framework path above an ordinary card.
+ *
+ * Descriptor ancestors that directly follow the Concept remain one semantic
+ * subject. Ordinary grouping Rems are preserved as separate context segments
+ * so the plugin does not silently reinterpret them as Descriptors.
+ */
+async function readAncestorCdfContext(
+  plugin: RNPlugin,
+  rem: Rem,
+  includeCurrentRem = false,
+): Promise<CdfContextPath | null> {
+  const visitedRemIds = new Set<string>();
+  const ancestorNodes: Array<{ text: string; type: RemType }> = [];
+  let currentRem: Rem | undefined;
+
+  try {
+    currentRem = includeCurrentRem
+      ? rem
+      : typeof rem.getParentRem === 'function'
+        ? await rem.getParentRem()
+        : undefined;
+  } catch (error) {
+    console.warn('Could not read the parent of a CDF-aware card.', error);
+    return null;
+  }
+
+  for (let depth = 0; currentRem && depth < 64; depth += 1) {
+    if (currentRem._id) {
+      if (visitedRemIds.has(currentRem._id)) return null;
+      visitedRemIds.add(currentRem._id);
+    }
+
+    const currentText = await readPlainText(plugin, currentRem.text);
+    if (currentText) ancestorNodes.unshift({ text: currentText, type: currentRem.type });
+
+    if (currentRem.type === RemType.CONCEPT) {
+      if (!currentText) return null;
+
+      const descriptorTexts: string[] = [];
+      const contextTexts: string[] = [];
+      let descriptorChainOpen = true;
+      for (const node of ancestorNodes.slice(1)) {
+        if (descriptorChainOpen && node.type === RemType.DESCRIPTOR) {
+          descriptorTexts.push(node.text);
+        } else {
+          descriptorChainOpen = false;
+          contextTexts.push(node.text);
+        }
+      }
+      return { conceptText: currentText, descriptorTexts, contextTexts };
+    }
+
+    try {
+      currentRem = typeof currentRem.getParentRem === 'function'
+        ? await currentRem.getParentRem()
+        : undefined;
+    } catch (error) {
+      console.warn('Could not continue reading a CDF ancestor path.', error);
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Finds the Concept/Descriptor outline that gives a Cloze its meaning.
  *
  * A Cloze in a Descriptor's back text belongs to that Descriptor, while a
@@ -92,53 +163,17 @@ async function readClozeContextPath(
   plugin: RNPlugin,
   clozeRem: Rem,
   includeCurrentSemanticRem: boolean,
-): Promise<DescriptorPath | null> {
-  const descriptorTexts: string[] = [];
-  const visitedRemIds = new Set<string>();
-  let currentRem: Rem | undefined;
-
-  if (
-    includeCurrentSemanticRem &&
-    (clozeRem.type === RemType.CONCEPT || clozeRem.type === RemType.DESCRIPTOR)
-  ) {
-    currentRem = clozeRem;
-  } else {
-    try {
-      currentRem = await clozeRem.getParentRem();
-    } catch (error) {
-      console.warn('Could not read the parent of a contextual Cloze.', error);
-      return null;
-    }
-  }
-
-  for (let depth = 0; currentRem && depth < 64; depth += 1) {
-    if (currentRem._id) {
-      if (visitedRemIds.has(currentRem._id)) return null;
-      visitedRemIds.add(currentRem._id);
-    }
-
-    const currentText = await readPlainText(plugin, currentRem.text);
-    if (currentRem.type === RemType.CONCEPT) {
-      return currentText ? { conceptText: currentText, descriptorTexts } : null;
-    }
-    if (currentRem.type !== RemType.DESCRIPTOR || !currentText) return null;
-
-    descriptorTexts.unshift(currentText);
-    try {
-      currentRem = await currentRem.getParentRem();
-    } catch (error) {
-      console.warn('Could not read a parent in the Cloze context path.', error);
-      return null;
-    }
-  }
-
-  return null;
+): Promise<CdfContextPath | null> {
+  const includesCurrentRem = includeCurrentSemanticRem &&
+    (clozeRem.type === RemType.CONCEPT || clozeRem.type === RemType.DESCRIPTOR);
+  return readAncestorCdfContext(plugin, clozeRem, includesCurrentRem);
 }
 
-function addClozeContext(
+function addSpeechContext(
   text: string,
   contextSegments: string[],
   language: SupportedLanguage,
+  localSegments?: SpeechContent['segments'],
 ): SpeechContent {
   const spokenText = text.trim();
   if (!spokenText) return { text: '', language };
@@ -157,17 +192,23 @@ function addClozeContext(
         ) === index;
     });
   if (uniqueContextSegments.length === 0) {
-    return { text: spokenText, language };
+    return { text: spokenText, language, segments: localSegments };
   }
 
   const separator = language === 'en' ? '. ' : '。';
   return {
     text: [...uniqueContextSegments, spokenText].join(separator),
     language,
-    segments: [...uniqueContextSegments, spokenText].map((segment) => ({
-      text: segment,
-      language: detectLanguage(segment, language),
-    })),
+    segments: [
+      ...uniqueContextSegments.map((segment) => ({
+        text: segment,
+        language: detectLanguage(segment, language),
+      })),
+      ...(localSegments ?? [{
+        text: spokenText,
+        language: detectLanguage(spokenText, language),
+      }]),
+    ],
   };
 }
 
@@ -232,7 +273,9 @@ export async function buildCardSpeechPlan(
         contextLanguage,
       )
       : '';
-    const contextSegments = contextSubject ? [contextSubject] : [];
+    const contextSegments = contextPath
+      ? [contextSubject, ...contextPath.contextTexts].filter(Boolean)
+      : [];
     // In an ordinary A/B Rem whose Cloze lives in backText, the front text is
     // a necessary part of the question. For example:
     // "附着在粗面内质网 ← 主要和 {{蛋白质}} 的合成有关".
@@ -245,13 +288,13 @@ export async function buildCardSpeechPlan(
       const localFrontText = piecesToPlainText(frontPieces);
       if (localFrontText) contextSegments.push(localFrontText);
     }
-    const question = addClozeContext(rendered.questionText, contextSegments, contextLanguage);
+    const question = addSpeechContext(rendered.questionText, contextSegments, contextLanguage);
     // Read the completed sentence after reveal instead of speaking only the
     // missing word. This keeps an answer meaningful without looking at the
     // screen: "主要和蛋白质的合成有关", not merely "蛋白质".
     const rawAnswer = piecesToPlainText(pieces) || rendered.answerText;
     const answerLanguage = detectLanguage(`${contextSegments.join(' ')} ${rawAnswer}`, contextLanguage);
-    const answer = addClozeContext(rawAnswer, contextSegments, answerLanguage);
+    const answer = addSpeechContext(rawAnswer, contextSegments, answerLanguage);
 
     return {
       cardId: activeCardId,
@@ -275,6 +318,20 @@ export async function buildCardSpeechPlan(
     let subject: string | undefined;
     let backwardAnswer = frontText;
     let questionLanguage = detectLanguage(frontText, settings.defaultLanguage);
+    const ancestorContext = rem.type !== RemType.CONCEPT && rem.type !== RemType.DESCRIPTOR
+      ? await readAncestorCdfContext(plugin, rem)
+      : null;
+    if (ancestorContext) {
+      questionLanguage = detectLanguage(
+        [
+          ancestorContext.conceptText,
+          ...ancestorContext.descriptorTexts,
+          ...ancestorContext.contextTexts,
+          frontText,
+        ].join(' '),
+        questionLanguage,
+      );
+    }
 
     if (rem.type === RemType.CONCEPT) {
       const conceptSpeech = buildConceptSpeech(frontText, '', questionLanguage);
@@ -305,8 +362,19 @@ export async function buildCardSpeechPlan(
       }
     }
 
+    const ancestorSubject = ancestorContext
+      ? buildDescriptorPathSubject(
+        ancestorContext.conceptText,
+        ancestorContext.descriptorTexts,
+        questionLanguage,
+      )
+      : '';
+    const ancestorSegments = ancestorContext
+      ? [ancestorSubject, ...ancestorContext.contextTexts].filter(Boolean)
+      : [];
+
     const answerLanguage = detectLanguage(
-      structuredCard.items.join(' '),
+      `${ancestorSegments.join(' ')} ${structuredCard.items.join(' ')}`,
       questionLanguage,
     );
     const childRemIndex = structuredCard.kind === 'list-answer' && structuredRoot
@@ -330,8 +398,13 @@ export async function buildCardSpeechPlan(
     const answerItems = readsOneListItem
       ? [structuredCard.items[activeListItemIndex]]
       : structuredCard.items;
+    // A normal structured card keeps its own title as the local answer subject,
+    // while the CDF ancestors remain separate context segments.
+    const localAnswerSubject = cardType === 'backward'
+      ? undefined
+      : subject ?? (ancestorContext ? frontText : undefined);
     const spokenSegments = buildStructuredAnswerSegments(
-      cardType === 'backward' ? undefined : subject,
+      localAnswerSubject,
       answerItems,
       structuredCard.kind,
       answerLanguage,
@@ -345,23 +418,35 @@ export async function buildCardSpeechPlan(
     const spokenItems = readsOneListItem
       ? spokenSegments.join(' ')
       : buildStructuredAnswer(
-        cardType === 'backward' ? undefined : subject,
+        localAnswerSubject,
         structuredCard.items,
         structuredCard.kind,
         answerLanguage,
       );
     const kindPrefix = structuredCard.kind === 'list-answer' ? 'list-answer' : 'multi-line';
+    const contextualQuestion = addSpeechContext(
+      questionText,
+      ancestorSegments,
+      questionLanguage,
+    );
+    const contextualItems = addSpeechContext(
+      spokenItems,
+      ancestorSegments,
+      answerLanguage,
+      localizedSegments,
+    );
 
     if (cardType === 'backward') {
       return {
         cardId: activeCardId,
         remId: context.remId,
         kind: `${kindPrefix}-backward`,
-        question: { text: spokenItems, language: answerLanguage, segments: localizedSegments },
-        answer: {
-          text: backwardAnswer,
-          language: detectLanguage(backwardAnswer, questionLanguage),
-        },
+        question: contextualItems,
+        answer: addSpeechContext(
+          backwardAnswer,
+          ancestorSegments,
+          detectLanguage(backwardAnswer, questionLanguage),
+        ),
       };
     }
 
@@ -369,8 +454,8 @@ export async function buildCardSpeechPlan(
       cardId: activeCardId,
       remId: context.remId,
       kind: `${kindPrefix}-forward`,
-      question: { text: questionText, language: questionLanguage },
-      answer: { text: spokenItems, language: answerLanguage, segments: localizedSegments },
+      question: contextualQuestion,
+      answer: contextualItems,
     };
   }
 
@@ -444,6 +529,57 @@ export async function buildCardSpeechPlan(
         answer: { text: descriptorSpeech.answer, language: descriptorLanguage },
       };
     }
+  }
+
+  // Ordinary A/B cards can still belong to a Concept-Descriptor Framework.
+  // Keep the semantic CDF subject and any ordinary grouping Rems audible
+  // instead of treating only the leaf's front/back text as the whole card.
+  const ancestorContext = await readAncestorCdfContext(plugin, rem);
+  if (ancestorContext && frontText && backText) {
+    const contextLanguage = detectLanguage(
+      [
+        ancestorContext.conceptText,
+        ...ancestorContext.descriptorTexts,
+        ...ancestorContext.contextTexts,
+        frontText,
+        backText,
+      ].join(' '),
+      settings.defaultLanguage,
+    );
+    const contextSubject = buildDescriptorPathSubject(
+      ancestorContext.conceptText,
+      ancestorContext.descriptorTexts,
+      contextLanguage,
+    );
+    const contextSegments = [contextSubject, ...ancestorContext.contextTexts].filter(Boolean);
+
+    if (cardType === 'backward') {
+      const questionLanguage = detectLanguage(backText, contextLanguage);
+      return {
+        cardId: activeCardId,
+        remId: context.remId,
+        kind: 'backward',
+        question: addSpeechContext(backText, contextSegments, questionLanguage),
+        answer: addSpeechContext(
+          frontText,
+          contextSegments,
+          detectLanguage(frontText, questionLanguage),
+        ),
+      };
+    }
+
+    const questionLanguage = detectLanguage(frontText, contextLanguage);
+    return {
+      cardId: activeCardId,
+      remId: context.remId,
+      kind: 'forward',
+      question: addSpeechContext(frontText, contextSegments, questionLanguage),
+      answer: addSpeechContext(
+        backText,
+        [...contextSegments, frontText],
+        detectLanguage(backText, questionLanguage),
+      ),
+    };
   }
 
   if (cardType === 'backward') {
