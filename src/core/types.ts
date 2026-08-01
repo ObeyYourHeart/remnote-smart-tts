@@ -32,7 +32,13 @@ export interface SpeechContent {
   text: string;
   language: SupportedLanguage;
   /** Optional semantic units that should be spoken with a clear boundary. */
-  segments?: string[];
+  segments?: SpeechSegment[];
+}
+
+/** One independently voiced semantic unit inside a single playback plan. */
+export interface SpeechSegment {
+  text: string;
+  language: SupportedLanguage;
 }
 
 export type SupportedCardKind =

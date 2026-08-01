@@ -29,6 +29,7 @@ The question and answer sides are detected independently, so a bilingual card ca
 - Automatic question and answer playback with Off, Question, Answer, and Both modes.
 - Chinese (`zh-CN`), English (`en-US`), and Japanese (`ja-JP`) language detection.
 - Independent voice selection for each supported language.
+- Voice switching between Chinese, English, and Japanese semantic segments inside one card.
 - Compact queue control with manual play, stop, and advanced voice setup.
 - Optional visual replacement of RemNote's built-in Front/Back TTS row.
 - Browser Speech for a free, simple setup.
@@ -108,6 +109,7 @@ RemNote Smart TTS 是一个理解卡片结构的 RemNote 复习队列朗读插�
 - 自动朗读可选择关闭、仅问题、仅答案或问题与答案。
 - 支持中文（`zh-CN`）、英文（`en-US`）和日文（`ja-JP`）检测。
 - 三种语言分别选择声音。
+- 同一卡片内可按语义段自动切换中文、英文和日文声音。
 - 卡片内只保留紧凑的播放、停止和高级设置入口。
 - 可在视觉上替代 RemNote 自带的 Front/Back TTS 控件。
 - Browser Speech 免费且配置简单。

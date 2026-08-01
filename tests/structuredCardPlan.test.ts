@@ -68,9 +68,9 @@ test('reads a Cloze in a Descriptor answer with its Concept and Descriptor', asy
 
   assert.equal(plan?.kind, 'cloze');
   assert.equal(plan?.question.text, '叶绿体的结构。基质中含有 什么。');
-  assert.deepEqual(plan?.question.segments, ['叶绿体的结构', '基质中含有 什么。']);
+  assert.deepEqual(plan?.question.segments?.map((segment) => segment.text), ['叶绿体的结构', '基质中含有 什么。']);
   assert.equal(plan?.answer.text, '叶绿体的结构。基质中含有DNA。');
-  assert.deepEqual(plan?.answer.segments, ['叶绿体的结构', '基质中含有DNA。']);
+  assert.deepEqual(plan?.answer.segments?.map((segment) => segment.text), ['叶绿体的结构', '基质中含有DNA。']);
 });
 
 test('inherits a complete Concept and Descriptor path for a child Cloze Rem', async () => {
@@ -113,7 +113,7 @@ test('inherits a complete Concept and Descriptor path for a child Cloze Rem', as
   );
 
   assert.equal(plan?.question.text, '细胞的结构的细胞核。主要储存 什么。');
-  assert.deepEqual(plan?.question.segments, ['细胞的结构的细胞核', '主要储存 什么。']);
+  assert.deepEqual(plan?.question.segments?.map((segment) => segment.text), ['细胞的结构的细胞核', '主要储存 什么。']);
   assert.equal(plan?.answer.text, '细胞的结构的细胞核。主要储存遗传物质。');
 });
 
@@ -154,7 +154,7 @@ test('keeps the front of an ordinary A/B Rem whose Cloze is in the answer', asyn
     plan?.question.text,
     '核糖体的位置不同。附着在粗面内质网。主要和 什么 的合成有关',
   );
-  assert.deepEqual(plan?.question.segments, [
+  assert.deepEqual(plan?.question.segments?.map((segment) => segment.text), [
     '核糖体的位置不同',
     '附着在粗面内质网',
     '主要和 什么 的合成有关',
@@ -193,9 +193,9 @@ test('reads a direct Concept child Cloze as one contextual speech plan', async (
   );
 
   assert.equal(plan?.question.text, '核糖体。主要参与 什么 的合成');
-  assert.deepEqual(plan?.question.segments, ['核糖体', '主要参与 什么 的合成']);
+  assert.deepEqual(plan?.question.segments?.map((segment) => segment.text), ['核糖体', '主要参与 什么 的合成']);
   assert.equal(plan?.answer.text, '核糖体。主要参与蛋白质的合成');
-  assert.deepEqual(plan?.answer.segments, ['核糖体', '主要参与蛋白质的合成']);
+  assert.deepEqual(plan?.answer.segments?.map((segment) => segment.text), ['核糖体', '主要参与蛋白质的合成']);
 });
 
 test('keeps direct Concept child Clozes contextual in English and Japanese', async () => {
@@ -249,6 +249,43 @@ test('keeps direct Concept child Clozes contextual in English and Japanese', asy
     assert.equal(plan?.question.text, currentCase.question);
     assert.equal(plan?.answer.text, currentCase.completed);
   }
+});
+
+test('marks a Chinese Concept and English Cloze sentence with different voices', async () => {
+  const conceptRem = {
+    _id: 'mixed-language-concept',
+    type: 1,
+    text: ['核糖体'],
+  } as unknown as Rem;
+  const clozeRem = {
+    _id: 'mixed-language-cloze',
+    type: 0,
+    text: [
+      'It makes ',
+      { i: 'm', text: 'proteins', cId: 'mixed-language-cloze-id' },
+      '.',
+    ],
+    backText: [],
+    hasPowerup: async () => false,
+    isCardItem: async () => false,
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(clozeRem, { clozeId: 'mixed-language-cloze-id' }),
+    { remId: clozeRem._id, cardId: 'mixed-language-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.deepEqual(plan?.question.segments, [
+    { text: '核糖体', language: 'zh' },
+    { text: 'It makes what.', language: 'en' },
+  ]);
+  assert.deepEqual(plan?.answer.segments, [
+    { text: '核糖体', language: 'zh' },
+    { text: 'It makes proteins.', language: 'en' },
+  ]);
 });
 
 test('builds a Concept Multi-Line plan even when the parent has no back text', async () => {
@@ -343,7 +380,7 @@ test('uses the queue-tracked index when RemNote keeps the parent card identity',
     { structuredItemIndex: 1 },
   );
 
-  assert.deepEqual(plan?.answer.segments, ['第二，把大象放进去。']);
+  assert.deepEqual(plan?.answer.segments?.map((segment) => segment.text), ['第二，把大象放进去。']);
   assert.equal(plan?.answer.text, '第二，把大象放进去。');
   assert.equal(plan?.question.text, '把大象放入冰箱的第二步是什么？');
 });
@@ -380,7 +417,7 @@ test('climbs from an ordered child when the parent powerup is omitted', async ()
 
   assert.equal(plan?.kind, 'list-answer-forward');
   assert.equal(plan?.question.text, '把大象放入冰箱的第二步是什么？');
-  assert.deepEqual(plan?.answer.segments, ['第二，把大象放进去。']);
+  assert.deepEqual(plan?.answer.segments?.map((segment) => segment.text), ['第二，把大象放进去。']);
   assert.equal(plan?.answer.text, '第二，把大象放进去。');
 });
 
@@ -649,5 +686,5 @@ test('keeps a complete deep Descriptor path in an ordered question', async () =>
 
   assert.equal(plan?.kind, 'list-answer-forward');
   assert.equal(plan?.question.text, '叶绿体的结构的光反应的第二步是什么？');
-  assert.deepEqual(plan?.answer.segments, ['第二，产生能量载体。']);
+  assert.deepEqual(plan?.answer.segments?.map((segment) => segment.text), ['第二，产生能量载体。']);
 });

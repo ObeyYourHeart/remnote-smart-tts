@@ -3,6 +3,7 @@ import type {
   SpeechContent,
   SpeechPlaybackCallbacks,
   SpeechPlaybackResult,
+  SpeechSegment,
   SpeechSettings,
   SupportedLanguage,
 } from './types';
@@ -93,6 +94,43 @@ function escapeXml(text: string): string {
 function rateAsSsmlPercent(rate: number): string {
   const percentage = Math.round((rate - 1) * 100);
   return `${percentage >= 0 ? '+' : ''}${percentage}%`;
+}
+
+function normalizeSpeechSegments(content: SpeechContent): SpeechSegment[] {
+  return (content.segments ?? [])
+    .map((segment) => ({ ...segment, text: segment.text.trim() }))
+    .filter((segment) => Boolean(segment.text));
+}
+
+/**
+ * Builds one Azure request that can switch voices between semantic segments.
+ * Keeping all voices in one SSML document avoids a network round-trip at each
+ * language boundary.
+ */
+export function buildAzureSsml(content: SpeechContent, settings: SpeechSettings): string {
+  const semanticSegments = normalizeSpeechSegments(content);
+  const rate = rateAsSsmlPercent(settings.rate);
+  const spokenBody = semanticSegments.length > 0
+    ? semanticSegments
+      .map((segment) => [
+        `<voice name="${escapeXml(settings.azureVoices[segment.language])}">`,
+        '<s>',
+        `<prosody rate="${rate}">${escapeXml(segment.text)}</prosody>`,
+        '</s>',
+        '</voice>',
+      ].join(''))
+      .join('<break time="220ms"/>')
+    : [
+      `<voice name="${escapeXml(settings.azureVoices[content.language])}">`,
+      `<prosody rate="${rate}">${escapeXml(content.text)}</prosody>`,
+      '</voice>',
+    ].join('');
+
+  return [
+    `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${LOCALES[content.language]}">`,
+    spokenBody,
+    '</speak>',
+  ].join('');
 }
 
 async function waitForBrowserVoices(): Promise<SpeechSynthesisVoice[]> {
@@ -205,18 +243,24 @@ export class SpeechController {
     callbacks: SpeechPlaybackCallbacks,
   ): Promise<void> {
     const voices = await waitForBrowserVoices();
-    const voice = chooseBrowserVoice(voices, content.language, settings.browserVoices[content.language]);
-
-    const semanticSegments = content.segments?.map((segment) => segment.trim()).filter(Boolean);
-    const chunks = semanticSegments?.length
-      ? semanticSegments.flatMap((segment) => splitSpeechText(segment))
-      : splitSpeechText(content.text);
+    const semanticSegments = normalizeSpeechSegments(content);
+    const sources = semanticSegments.length > 0
+      ? semanticSegments
+      : [{ text: content.text, language: content.language }];
+    const chunks = sources.flatMap((segment) =>
+      splitSpeechText(segment.text).map((text) => ({ text, language: segment.language })),
+    );
 
     for (const chunk of chunks) {
       if (generation !== this.generation) return;
+      const voice = chooseBrowserVoice(
+        voices,
+        chunk.language,
+        settings.browserVoices[chunk.language],
+      );
       await new Promise<void>((resolve, reject) => {
-        const utterance = new SpeechSynthesisUtterance(chunk);
-        utterance.lang = LOCALES[content.language];
+        const utterance = new SpeechSynthesisUtterance(chunk.text);
+        utterance.lang = LOCALES[chunk.language];
         utterance.voice = voice ?? null;
         utterance.rate = settings.rate;
         utterance.volume = settings.volume;
@@ -245,10 +289,13 @@ export class SpeechController {
     const session = this.getOrCreateAzureSession(SpeechSDK, azureKey, region);
     const { synthesizer } = session;
 
-    const semanticSegments = content.segments?.map((segment) => segment.trim()).filter(Boolean);
-    const azurePayloads = semanticSegments?.length
-      ? [{ segments: semanticSegments }]
-      : splitSpeechText(content.text, 450).map((text) => ({ text }));
+    const semanticSegments = normalizeSpeechSegments(content);
+    const azurePayloads: SpeechContent[] = semanticSegments.length > 0
+      ? [{ ...content, segments: semanticSegments }]
+      : splitSpeechText(content.text, 450).map((text) => ({
+        text,
+        language: content.language,
+      }));
 
     this.azureSessionBusy = true;
     try {
@@ -268,22 +315,7 @@ export class SpeechController {
             streamPlayer.closeStream();
           }
         }();
-      const spokenBody = 'segments' in payload
-        ? payload.segments
-          .map((segment) => [
-            '<s>',
-            `<prosody rate="${rateAsSsmlPercent(settings.rate)}">${escapeXml(segment)}</prosody>`,
-            '</s>',
-          ].join(''))
-          .join('<break time="220ms"/>')
-        : `<prosody rate="${rateAsSsmlPercent(settings.rate)}">${escapeXml(payload.text)}</prosody>`;
-      const ssml = [
-        `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${LOCALES[content.language]}">`,
-        `<voice name="${escapeXml(settings.azureVoices[content.language])}">`,
-        spokenBody,
-        '</voice>',
-        '</speak>',
-      ].join('');
+      const ssml = buildAzureSsml(payload, settings);
 
       await new Promise<void>((resolve, reject) => {
         let settled = false;

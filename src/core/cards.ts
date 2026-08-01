@@ -164,7 +164,10 @@ function addClozeContext(
   return {
     text: [...uniqueContextSegments, spokenText].join(separator),
     language,
-    segments: [...uniqueContextSegments, spokenText],
+    segments: [...uniqueContextSegments, spokenText].map((segment) => ({
+      text: segment,
+      language: detectLanguage(segment, language),
+    })),
   };
 }
 
@@ -335,6 +338,10 @@ export async function buildCardSpeechPlan(
       readsOneListItem ? activeListItemIndex : 0,
       !readsOneListItem,
     );
+    const localizedSegments = spokenSegments.map((segment) => ({
+      text: segment,
+      language: detectLanguage(segment, answerLanguage),
+    }));
     const spokenItems = readsOneListItem
       ? spokenSegments.join(' ')
       : buildStructuredAnswer(
@@ -350,7 +357,7 @@ export async function buildCardSpeechPlan(
         cardId: activeCardId,
         remId: context.remId,
         kind: `${kindPrefix}-backward`,
-        question: { text: spokenItems, language: answerLanguage, segments: spokenSegments },
+        question: { text: spokenItems, language: answerLanguage, segments: localizedSegments },
         answer: {
           text: backwardAnswer,
           language: detectLanguage(backwardAnswer, questionLanguage),
@@ -363,7 +370,7 @@ export async function buildCardSpeechPlan(
       remId: context.remId,
       kind: `${kindPrefix}-forward`,
       question: { text: questionText, language: questionLanguage },
-      answer: { text: spokenItems, language: answerLanguage, segments: spokenSegments },
+      answer: { text: spokenItems, language: answerLanguage, segments: localizedSegments },
     };
   }
 

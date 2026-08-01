@@ -6,8 +6,8 @@
   "repoUrl": "https://github.com/ObeyYourHeart/remnote-smart-tts",
   "version": {
     "major": 0,
-    "minor": 8,
-    "patch": 12
+    "minor": 9,
+    "patch": 0
   },
   "theme": [],
   "enableOnMobile": false,
