@@ -26,6 +26,9 @@ export function classifyAzureSpeechError(error: unknown): AzureSpeechErrorClassi
   if (/\b429\b|quota|free tier|rate limit|too many requests|exceed(?:ed|s|ing)/u.test(message)) {
     return { kind: 'quota' };
   }
+  if (/ssml|rootspeak|should not contain node|websocket error code:\s*1007/u.test(message)) {
+    return { kind: 'configuration' };
+  }
   if (/voice.*(?:not found|invalid|unsupported)|(?:not found|invalid|unsupported).*voice|region|endpoint|\b404\b/u.test(message)) {
     return { kind: 'configuration' };
   }

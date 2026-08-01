@@ -82,6 +82,8 @@ function FlashcardSpeechWidget() {
   const [settings, setSettings] = useState<SpeechSettings | null>(null);
   const [azureKey, setAzureKey] = useState('');
   const [status, setStatus] = useState<SpeechStatus>('loading');
+  const [lastPlaybackResult, setLastPlaybackResult] = useState<SpeechPlaybackResult | null>(null);
+  const [lastPlaybackError, setLastPlaybackError] = useState('');
   const contextSignatureRef = useRef('');
   const autoSpokenSignatureRef = useRef('');
   const autoSpeakTimerRef = useRef<number | null>(null);
@@ -231,6 +233,8 @@ function FlashcardSpeechWidget() {
     if (!content.text.trim()) return;
 
     setStatus('preparing');
+    setLastPlaybackResult(null);
+    setLastPlaybackError('');
     try {
       let result: SpeechPlaybackResult;
       try {
@@ -248,6 +252,7 @@ function FlashcardSpeechWidget() {
           onPlaybackStart: () => setStatus('speaking'),
         });
       }
+      setLastPlaybackResult(result);
       if (result.fallbackReason) {
         await plugin.app.toast(
           settings.uiLanguage === 'zh'
@@ -261,6 +266,7 @@ function FlashcardSpeechWidget() {
       setStatus('error');
       const rawMessage = error instanceof Error ? error.message : String(error);
       const safeMessage = azureKey ? rawMessage.replaceAll(azureKey, '[redacted]') : rawMessage;
+      setLastPlaybackError(safeMessage);
       await plugin.app.toast(
         settings.uiLanguage === 'zh'
           ? `朗读失败：${safeMessage}`
@@ -354,6 +360,18 @@ function FlashcardSpeechWidget() {
   // completely blank 82x38 widget slot.
   if (!settings?.enabled) return null;
   const chinese = settings?.uiLanguage === 'zh';
+  const currentSpeechContent = context?.revealed ? plan?.answer : plan?.question;
+  const diagnostics = process.env.NODE_ENV === 'development' && settings
+    ? {
+      speechText: currentSpeechContent?.text ?? '',
+      cardKind: plan?.kind ?? 'unrecognized',
+      requestedProvider: settings.provider,
+      actualProvider: lastPlaybackResult?.provider,
+      fallbackReason: lastPlaybackResult?.fallbackReason || lastPlaybackError || undefined,
+      diagnosticReason: lastPlaybackResult?.diagnosticReason,
+      planningDiagnostics: plan?.diagnostics,
+    }
+    : undefined;
 
   return (
     <SpeechControl
@@ -367,6 +385,7 @@ function FlashcardSpeechWidget() {
       onPlay={() => void speakCurrentSide()}
       onStop={stopCurrentSpeech}
       onOpenSettings={() => void plugin.widget.openPopup('settings')}
+      diagnostics={diagnostics}
     />
   );
 }

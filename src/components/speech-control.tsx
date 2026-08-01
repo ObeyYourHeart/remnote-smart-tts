@@ -11,6 +11,19 @@ interface SpeechControlProps {
   onPlay: () => void;
   onStop: () => void;
   onOpenSettings: () => void;
+  /**
+   * Localhost-only runtime facts used to verify the real RemNote iframe.
+   * Never include credentials here: DOM attributes are visible to the page.
+   */
+  diagnostics?: {
+    speechText: string;
+    cardKind: string;
+    requestedProvider: string;
+    actualProvider?: string;
+    fallbackReason?: string;
+    diagnosticReason?: string;
+    planningDiagnostics?: Record<string, string | number | boolean>;
+  };
 }
 
 function VoiceIcon() {
@@ -62,6 +75,7 @@ export function SpeechControl({
   onPlay,
   onStop,
   onOpenSettings,
+  diagnostics,
 }: SpeechControlProps) {
   const preparing = status === 'preparing';
   const speaking = status === 'speaking';
@@ -73,8 +87,30 @@ export function SpeechControl({
       : speaking
         ? stopLabel
         : playLabel;
+  const diagnosticTitle = diagnostics
+    ? JSON.stringify({
+      text: diagnostics.speechText,
+      kind: diagnostics.cardKind,
+      requestedProvider: diagnostics.requestedProvider,
+      actualProvider: diagnostics.actualProvider,
+      fallbackReason: diagnostics.fallbackReason,
+      diagnosticReason: diagnostics.diagnosticReason,
+      planningDiagnostics: diagnostics.planningDiagnostics,
+    })
+    : primaryLabel;
   return (
-    <div className="speech-control" data-status={status} aria-label="RemNote Smart TTS" aria-live="polite">
+    <div
+      className="speech-control"
+      data-status={status}
+      data-speech-text={diagnostics?.speechText}
+      data-card-kind={diagnostics?.cardKind}
+      data-requested-provider={diagnostics?.requestedProvider}
+      data-actual-provider={diagnostics?.actualProvider}
+      data-fallback-reason={diagnostics?.fallbackReason}
+      data-diagnostic-reason={diagnostics?.diagnosticReason}
+      aria-label="RemNote Smart TTS"
+      aria-live="polite"
+    >
       <button
         type="button"
         className="speech-control__primary"
@@ -82,7 +118,7 @@ export function SpeechControl({
         disabled={disabled || status === 'loading'}
         aria-busy={preparing}
         aria-label={primaryLabel}
-        title={primaryLabel}
+        title={diagnosticTitle}
       >
         <span className="speech-control__pulse" aria-hidden="true" />
         {preparing ? <LoadingIcon /> : speaking ? <PlayingIcon /> : <VoiceIcon />}

@@ -111,6 +111,81 @@ test('joins a Descriptor value Cloze to its Concept with a natural copula', asyn
   assert.equal(plan?.answer.text, '蛋白质的变性条件是高温、过酸、过碱和重金属盐');
 });
 
+test('joins a front-side Descriptor label to its Cloze value list', async () => {
+  const conceptRem = {
+    _id: 'front-value-concept',
+    type: 1,
+    text: ['蛋白质'],
+  } as unknown as Rem;
+  const descriptorRem = {
+    _id: 'front-value-descriptor',
+    type: 2,
+    text: [
+      '变性条件：',
+      { i: 'm', text: '高温', cId: 'front-heat' },
+      '、',
+      { i: 'm', text: '过酸', cId: 'front-acid' },
+      '、',
+      { i: 'm', text: '过碱', cId: 'front-alkali' },
+      '和',
+      { i: 'm', text: '重金属盐', cId: 'front-heavy' },
+    ],
+    backText: [],
+    hasPowerup: async () => false,
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(descriptorRem, { clozeId: 'front-heavy' }),
+    { remId: descriptorRem._id, cardId: 'front-value-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.question.text, '蛋白质的变性条件是高温、过酸、过碱和什么');
+  assert.equal(plan?.answer.text, '蛋白质的变性条件是高温、过酸、过碱和重金属盐');
+});
+
+test('joins a Descriptor-shaped context Cloze when RemNote exposes it as an ordinary Rem', async () => {
+  const conceptRem = {
+    _id: 'protein-runtime-concept',
+    type: 1,
+    text: ['蛋白质'],
+  } as unknown as Rem;
+  const descriptorLikeRem = {
+    _id: 'runtime-conditions-parent',
+    type: 0,
+    text: ['变性条件'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const valueRem = {
+    _id: 'runtime-conditions-value',
+    type: 0,
+    text: [],
+    backText: [
+      { i: 'm', text: '高温', cId: 'heat-runtime' },
+      '、',
+      { i: 'm', text: '过酸', cId: 'acid-runtime' },
+      '、',
+      { i: 'm', text: '过碱', cId: 'alkali-runtime' },
+      '和',
+      { i: 'm', text: '重金属盐', cId: 'heavy-runtime' },
+    ],
+    hasPowerup: async () => false,
+    getParentRem: async () => descriptorLikeRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(valueRem, { clozeId: 'heavy-runtime' }),
+    { remId: valueRem._id, cardId: 'runtime-conditions-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.question.text, '蛋白质的变性条件是高温、过酸、过碱和什么');
+  assert.equal(plan?.answer.text, '蛋白质的变性条件是高温、过酸、过碱和重金属盐');
+});
+
 test('inherits a complete Concept and Descriptor path for a child Cloze Rem', async () => {
   const conceptRem = {
     _id: 'cell-concept',

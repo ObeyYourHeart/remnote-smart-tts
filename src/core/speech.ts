@@ -200,14 +200,17 @@ export function buildAzureSsml(content: SpeechContent, settings: SpeechSettings)
   const rate = rateAsSsmlPercent(settings.rate);
   const spokenBody = semanticSegments.length > 0
     ? semanticSegments
-      .map((segment) => [
+      .map((segment, index) => [
         `<voice name="${escapeXml(settings.azureVoices[segment.language])}">`,
+        // Azure does not allow <break> directly below the root <speak> node.
+        // Put the inter-segment pause inside the following voice instead.
+        index > 0 ? '<break time="220ms"/>' : '',
         '<s>',
         `<prosody rate="${rate}">${escapeXml(segment.text)}</prosody>`,
         '</s>',
         '</voice>',
       ].join(''))
-      .join('<break time="220ms"/>')
+      .join('')
     : [
       `<voice name="${escapeXml(settings.azureVoices[content.language])}">`,
       `<prosody rate="${rate}">${escapeXml(content.text)}</prosody>`,
@@ -317,7 +320,9 @@ export class SpeechController {
         const reason = formatAzureSpeechError(error, settings.uiLanguage);
         if (!settings.fallbackToBrowser) throw new Error(reason);
         await this.speakWithBrowser(content, settings, currentGeneration, callbacks);
-        return { provider: 'browser', fallbackReason: reason };
+        const rawReason = error instanceof Error ? error.message : String(error);
+        const diagnosticReason = rawReason.replaceAll(azureKey, '[redacted]').slice(0, 1_000);
+        return { provider: 'browser', fallbackReason: reason, diagnosticReason };
       }
     }
 

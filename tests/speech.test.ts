@@ -39,6 +39,8 @@ test('builds one Azure SSML document with a voice for every language segment', (
 
   assert.equal((ssml.match(/<speak\b/g) ?? []).length, 1);
   assert.equal((ssml.match(/<break time="220ms"\/>/g) ?? []).length, 2);
+  assert.equal(ssml.includes('</voice><break'), false);
+  assert.equal((ssml.match(/<voice[^>]*><break time="220ms"\/>/g) ?? []).length, 2);
   assert.match(ssml, new RegExp(`<voice name="${DEFAULT_SETTINGS.azureVoices.zh}">`));
   assert.match(ssml, new RegExp(`<voice name="${DEFAULT_SETTINGS.azureVoices.en}">`));
   assert.match(ssml, new RegExp(`<voice name="${DEFAULT_SETTINGS.azureVoices.ja}">`));

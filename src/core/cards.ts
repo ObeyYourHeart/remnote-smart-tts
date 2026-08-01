@@ -273,6 +273,26 @@ function startsWithClozeValue(pieces: RichTextPiece[]): boolean {
 }
 
 /**
+ * RemNote stores some Descriptor Cloze cards entirely in `text`, for example
+ * `变性条件：{{高温}}、{{过酸}}……`. The label before the first Cloze is the
+ * Descriptor name and must become part of the spoken subject.
+ */
+function readDescriptorValueLabel(pieces: RichTextPiece[]): string {
+  const firstClozeIndex = pieces.findIndex((piece) => Boolean(piece.clozeId));
+  if (firstClozeIndex <= 0) return '';
+  const prefix = pieces.slice(0, firstClozeIndex).map((piece) => piece.text).join('').trim();
+  if (!/[：:]\s*$/u.test(prefix)) return '';
+  return prefix.replace(/[：:]\s*$/u, '').trim();
+}
+
+function removeDescriptorValueLabel(text: string, label: string): string {
+  if (!label) return text.trim();
+  const spokenText = text.trim();
+  if (!spokenText.startsWith(label)) return spokenText;
+  return spokenText.slice(label.length).replace(/^\s*[：:]\s*/u, '').trim();
+}
+
+/**
  * Converts RemNote card metadata into the exact question/answer pair the speech layer needs.
  */
 export async function buildCardSpeechPlan(
@@ -333,6 +353,31 @@ export async function buildCardSpeechPlan(
         contextLanguage,
       )
       : '';
+    // RemNote can expose a Descriptor-looking parent as an ordinary context
+    // Rem for a generated Cloze card. When the back side is a value list that
+    // begins with Clozes, those context levels still form the audible subject.
+    // Keeping every level also supports deeply nested user templates.
+    const semanticValueSubject = contextPath
+      ? buildDescriptorPathSubject(
+        contextPath.conceptText,
+        [...contextPath.descriptorTexts, ...contextPath.contextTexts],
+        contextLanguage,
+      )
+      : '';
+    const frontDescriptorValueLabel = !clozeIsInBackText && rem.type === RemType.DESCRIPTOR
+      ? readDescriptorValueLabel(pieces)
+      : '';
+    const frontDescriptorValueSubject = contextPath && frontDescriptorValueLabel
+      ? buildDescriptorPathSubject(
+        contextPath.conceptText,
+        [
+          ...contextPath.descriptorTexts,
+          ...contextPath.contextTexts,
+          frontDescriptorValueLabel,
+        ],
+        contextLanguage,
+      )
+      : '';
     const contextSegments = contextPath
       ? [contextSubject, ...contextPath.contextTexts].filter(Boolean)
       : [];
@@ -350,22 +395,30 @@ export async function buildCardSpeechPlan(
     }
     const isSemanticValueCloze = Boolean(
       contextPath &&
-      contextSubject &&
-      contextPath.contextTexts.length === 0 &&
+      semanticValueSubject &&
       clozeIsInBackText &&
-      (rem.type === RemType.CONCEPT || rem.type === RemType.DESCRIPTOR) &&
       startsWithClozeValue(pieces),
     );
-    const question = isSemanticValueCloze
-      ? addSemanticValueContext(contextSubject, rendered.questionText, contextLanguage)
+    const isFrontDescriptorValueCloze = Boolean(frontDescriptorValueSubject);
+    const valueSubject = isFrontDescriptorValueCloze
+      ? frontDescriptorValueSubject
+      : semanticValueSubject;
+    const questionValue = isFrontDescriptorValueCloze
+      ? removeDescriptorValueLabel(rendered.questionText, frontDescriptorValueLabel)
+      : rendered.questionText;
+    const question = isSemanticValueCloze || isFrontDescriptorValueCloze
+      ? addSemanticValueContext(valueSubject, questionValue, contextLanguage)
       : addSpeechContext(rendered.questionText, contextSegments, contextLanguage);
     // Read the completed sentence after reveal instead of speaking only the
     // missing word. This keeps an answer meaningful without looking at the
     // screen: "主要和蛋白质的合成有关", not merely "蛋白质".
     const rawAnswer = piecesToPlainText(pieces) || rendered.answerText;
+    const answerValue = isFrontDescriptorValueCloze
+      ? removeDescriptorValueLabel(rawAnswer, frontDescriptorValueLabel)
+      : rawAnswer;
     const answerLanguage = detectLanguage(`${contextSegments.join(' ')} ${rawAnswer}`, contextLanguage);
-    const answer = isSemanticValueCloze
-      ? addSemanticValueContext(contextSubject, rawAnswer, answerLanguage)
+    const answer = isSemanticValueCloze || isFrontDescriptorValueCloze
+      ? addSemanticValueContext(valueSubject, answerValue, answerLanguage)
       : addSpeechContext(rawAnswer, contextSegments, answerLanguage);
 
     return {
@@ -374,6 +427,20 @@ export async function buildCardSpeechPlan(
       kind: 'cloze',
       question,
       answer,
+      diagnostics: {
+        remType: Number(rem.type),
+        clozeIsInBackText,
+        startsWithClozeValue: startsWithClozeValue(pieces),
+        hasContextPath: Boolean(contextPath),
+        contextConcept: contextPath?.conceptText ?? '',
+        descriptorTexts: contextPath?.descriptorTexts.join(' > ') ?? '',
+        contextTexts: contextPath?.contextTexts.join(' > ') ?? '',
+        semanticValueSubject,
+        isSemanticValueCloze,
+        frontDescriptorValueLabel,
+        frontDescriptorValueSubject,
+        isFrontDescriptorValueCloze,
+      },
     };
   }
 

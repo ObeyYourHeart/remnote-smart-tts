@@ -10,6 +10,15 @@ test('classifies common Azure subscription and configuration failures', () => {
   assert.equal(classifyAzureSpeechError('Azure speech synthesis timed out.').kind, 'timeout');
 });
 
+test('classifies malformed Azure SSML instead of misreporting it as a network failure', () => {
+  assert.equal(
+    classifyAzureSpeechError(
+      new Error('Node [speak] with type [RootSpeak] should not contain node [break]. websocket error code: 1007'),
+    ).kind,
+    'configuration',
+  );
+});
+
 test('formats actionable Chinese Azure messages without echoing arbitrary details', () => {
   assert.match(formatAzureSpeechError('429 quota exceeded', 'zh'), /额度/);
   assert.match(formatAzureSpeechError('HTTP 401 Unauthorized', 'zh'), /Key/);

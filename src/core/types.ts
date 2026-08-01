@@ -60,6 +60,8 @@ export interface CardSpeechPlan {
   kind: SupportedCardKind;
   question: SpeechContent;
   answer: SpeechContent;
+  /** Local planning facts used by the localhost runtime regression harness. */
+  diagnostics?: Record<string, string | number | boolean>;
 }
 
 export interface RichTextPiece {
@@ -82,4 +84,6 @@ export interface SpeechPlaybackCallbacks {
 export interface SpeechPlaybackResult {
   provider: SpeechProvider;
   fallbackReason?: string;
+  /** Safe, credential-redacted SDK detail exposed only by localhost diagnostics. */
+  diagnosticReason?: string;
 }
