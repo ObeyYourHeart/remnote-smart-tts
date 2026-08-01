@@ -41,7 +41,7 @@ Browser mode uses voices exposed through the Web Speech API. Availability depend
 
 #### Azure Speech
 
-Azure mode uses your own Speech resource, key, and region. Advanced Voice Setup dynamically loads the complete Azure catalog compatible with `zh-CN`, `en-US`, and `ja-JP`, while curated presets remain available if the catalog request fails. Azure usage may incur charges under your Microsoft subscription.
+Azure mode uses your own Speech resource, key, and region. Advanced Voice Setup dynamically loads the complete Azure catalog compatible with `zh-CN`, `en-US`, and `ja-JP`, while curated presets remain available if the catalog request fails. The plugin preconnects while RemNote prepares each card and streams compressed MP3 audio to reduce time to first sound. Azure usage may incur charges under your Microsoft subscription.
 
 The Speech Key is stored only in local RemNote plugin storage. It is never committed to this repository or placed in synchronized settings. Only text being synthesized is sent to the configured Azure Speech endpoint.
 
@@ -115,7 +115,7 @@ RemNote Smart TTS 是一个理解卡片结构的 RemNote 复习队列朗读插�
 
 #### Azure Speech
 
-Azure 模式需要你自己的 Speech resource、Key 和 Region。高级声音设置会动态加载 Azure 中与 `zh-CN`、`en-US`、`ja-JP` 兼容的完整目录；加载失败时仍可使用内置精选声音。Azure 可能按照你的 Microsoft 订阅产生费用。
+Azure 模式需要你自己的 Speech resource、Key 和 Region。高级声音设置会动态加载 Azure 中与 `zh-CN`、`en-US`、`ja-JP` 兼容的完整目录；加载失败时仍可使用内置精选声音。插件会在 RemNote 准备卡片时提前连接，并以压缩 MP3 流式播放，从而缩短首次出声等待。Azure 可能按照你的 Microsoft 订阅产生费用。
 
 Speech Key 只保存在 RemNote 插件的本机 storage，不会提交到仓库，也不会写入同步设置。只有当前需要合成的文字会发送到你配置的 Azure Speech endpoint。
 
