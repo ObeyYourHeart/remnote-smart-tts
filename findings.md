@@ -110,6 +110,8 @@
 - The tracked zero-based item index can therefore drive both the one-item answer and a localized per-step question without reading or changing the user's note content.
 # Semantic prompt customization research
 
+**Status: Shelved / 搁置。** The feature is theoretically possible, but its configuration burden, maintenance cost, optional inference cost, and uncertain recognition quality make its current cost-benefit ratio too low. Keep the existing structural model and conservative `What` fallback.
+
 - The current product already packages Concept, Descriptor, Multi-Line/Set, and ordered List-Answer as distinct semantic speech structures.
 - Current native settings expose everyday audio and Cloze controls, but Concept/Descriptor question wording is hard-coded in `concept.ts` and `descriptor.ts`.
 - The safest product direction is user-selected semantic templates with a conservative `What` default; fully automatic `who/when/where/how` inference should remain optional because the public card metadata does not encode those meanings.
@@ -121,3 +123,19 @@
 - The settings UI should explain the mental model with four preview cards: `Concept → definition`, `Concept + Descriptor → contextual question`, `Multi-Line → grouped answer`, and `List-Answer → one tested step`. This communicates the product idea better than exposing raw templates first.
 - High-value wording improvement: structured Descriptor sets can use plural prompts such as `市销率的缺陷有哪些？` / `What are the disadvantages of ...?`, while ordered lists continue to ask for the current step.
 - Every custom template needs token validation, a preview, reset-to-default, and a fallback to the built-in wording if required tokens are missing. Existing 0.7.7 users should keep identical defaults after migration.
+
+# Japanese wording audit
+
+- Concept `Xとは何ですか？`, Concept answer `Xは...`, Descriptor subject `XのY`, Descriptor question `XのYは何ですか？`, and the preview sentence are grammatical and generally natural.
+- The ordered question `象を冷蔵庫に入れるための第3ステップは何ですか？` is grammatical and understandable, though slightly textbook-like; `象を冷蔵庫に入れる手順の3番目は何ですか？` is a more native phrasing when the source already ends in `手順`.
+- Structured Japanese answers currently use Chinese full-width comma/semicolon punctuation (`，` and `；`). The content remains understandable to TTS, but `、` and separate `。` sentences would be more natural Japanese and produce safer pauses.
+- `答えには次の内容が含まれます。` is correct but stiff. For a set, `答えは次のとおりです。`; for an ordered list, `手順は次のとおりです。` are simpler spoken introductions.
+- The default Japanese Cloze replacement `なに` is only a generic placeholder, not a universally grammatical substitution. Japanese particles and counters make a single replacement impossible; `何々` can sound more clearly like a blank, while the existing setting already lets users override it.
+- Highest-priority Japanese defect is not grammar but detection: a Japanese term written only in kanji, such as `株価収益率`, scores as Chinese because the detector needs kana to identify Japanese. The planner often detects the question language from the front text alone, so Japanese default language must currently be selected for ambiguous numeric/no-script text, but it still cannot override a positive Han-only Chinese score.
+- Japan Foundation material confirms `Nは何ですか？` as a standard pattern and explicitly distinguishes the reading of `何` as `なん` or `なに`. Hard-coding the Cloze placeholder as hiragana `なに` can therefore force the wrong reading before `です`; storing `何` lets the Japanese voice choose the contextual reading and is a better default.
+- Culture Agency guidance prefers `。` and `、` in Japanese, while allowing `，` in horizontal writing if usage is consistent. The plugin currently mixes `，` with `；`, so Japanese structured speech should switch to `、` and sentence boundaries rather than reuse Chinese punctuation.
+- Recommended order of future Japanese fixes: (1) use front plus answer/Descriptor context to disambiguate kanji-only Japanese; (2) replace Japanese list punctuation and introductions; (3) change the new-install Cloze default from `なに` to `何` with a careful settings migration; (4) optionally refine the step question wording. No AI is needed.
+- Other optimization review: current autoplay already uses short 30/60/120 ms settle windows, cancels stale playback, preloads the Azure SDK, and batches semantic segments into one SSML request. Reducing these delays further is more likely to reintroduce missing or stale speech than create a noticeable benefit.
+- Azure audio is not cached. A cache could accelerate replay, but it would require changing the proven SDK playback path, managing memory and invalidation across voice/rate changes, and could reintroduce autoplay/echo bugs. Its cost-benefit ratio is currently low.
+- The ordered-card index is inferred from reveal transitions because the SDK exposes no child index. It is well tested, but a low-cost future regression suite should cover restarting the same parent list, skipping/grading transitions, and reopening a partially completed queue.
+- Recommended optimization priority beyond Japanese: improve test coverage for ordered-queue lifecycle, add a non-visual diagnostic tooltip showing detected language/provider/voice, and automate package/manifest version synchronization. Avoid adding more permanent card buttons or background AI services.

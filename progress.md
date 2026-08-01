@@ -84,6 +84,10 @@
 - The final exact-page reload timed out before a post-HMR snapshot; no repeat was attempted because the live page had already confirmed the necessary parent prompt and current-item marker.
 # Semantic prompt customization research
 
+- Marked semantic prompt customization as shelved by product decision; no runtime implementation was started.
+- Audited Japanese grammar, structured-answer punctuation, Cloze wording, and language selection. Found that most templates are correct, while kanji-only Japanese detection is a higher-impact issue than sentence grammar.
+- Cross-checked the core `Nは何ですか？` pattern with Japan Foundation material and Japanese punctuation with Culture Agency guidance. Completed the audit without changing runtime behavior.
+- Reviewed playback timing, Azure synthesis, queue state tracking, and UI scope for additional optimizations; retained the current timing and no-cache architecture as the safer choice.
 - Started auditing how the existing structural speech model can be explained and customized in RemNote settings.
 - Confirmed the working tree is clean and the repository is version 0.7.7 before any implementation decision.
 - Audited the hard-coded Concept/Descriptor builders, native settings, synced settings normalization, and advanced voice popup.
