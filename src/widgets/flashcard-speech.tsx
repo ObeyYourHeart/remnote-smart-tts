@@ -13,7 +13,7 @@ import {
   updateOrderedQueueState,
 } from '../core/orderedQueue';
 import { readAzureKey, readSettings } from '../core/settings';
-import { SpeechController } from '../core/speech';
+import { preloadAzureSpeechSdk, SpeechController } from '../core/speech';
 import type { CardSpeechPlan, SpeechSettings, SpeechStatus } from '../core/types';
 import '../style.css';
 
@@ -53,10 +53,12 @@ function FlashcardSpeechWidget() {
       if (!forceSettings && signature === contextSignatureRef.current) return;
 
       const [nextSettings, nextAzureKey] = await Promise.all([readSettings(plugin), readAzureKey(plugin)]);
-      // Load the SDK and start Azure's WebSocket handshake while RemNote is
-      // still resolving the card structure. The controller also releases a
-      // prepared connection when the provider changes back to Browser Speech.
-      controller.prepareAzure(nextSettings, nextAzureKey);
+      if (nextSettings.provider === 'azure') {
+        // Load the Azure runtime while RemNote finishes rendering the card.
+        void preloadAzureSpeechSdk().catch((error) => {
+          console.error('RemNote Smart TTS could not preload Azure Speech.', error);
+        });
+      }
       const nextPlan = await buildCardSpeechPlan(plugin, nextContext, nextSettings, {
         structuredItemIndex: orderedQueueStateRef.current.itemIndex,
       });

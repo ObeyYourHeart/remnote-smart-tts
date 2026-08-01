@@ -7,21 +7,6 @@ import type {
 } from './types';
 
 type AzureSpeechSdk = typeof import('microsoft-cognitiveservices-speech-sdk');
-type AzureSpeechSynthesizer = import('microsoft-cognitiveservices-speech-sdk').SpeechSynthesizer;
-type AzureSpeakerDestination = import('microsoft-cognitiveservices-speech-sdk').SpeakerAudioDestination;
-type AzureConnection = import('microsoft-cognitiveservices-speech-sdk').Connection;
-
-interface AzureSession {
-  sdk: AzureSpeechSdk;
-  synthesizer: AzureSpeechSynthesizer;
-  player: AzureSpeakerDestination;
-  connection: AzureConnection;
-}
-
-interface PreparedAzureSession {
-  signature: string;
-  promise: Promise<AzureSession>;
-}
 
 let azureSpeechSdkPromise: Promise<AzureSpeechSdk> | null = null;
 
@@ -147,43 +132,22 @@ function chooseBrowserVoice(
  */
 export class SpeechController {
   private generation = 0;
-  private activeSynthesizer: AzureSpeechSynthesizer | null = null;
-  private activePlayer: AzureSpeakerDestination | null = null;
-  private activeConnection: AzureConnection | null = null;
-  private preparedAzureSession: PreparedAzureSession | null = null;
-
-  /**
-   * Starts the SDK load and Azure WebSocket handshake while RemNote is still
-   * inspecting/rendering the card. The prepared session is consumed once by
-   * the next synthesis request, because the SDK speaker stream closes at the
-   * end of an utterance.
-   */
-  prepareAzure(settings: SpeechSettings, azureKey: string): void {
-    if (settings.provider !== 'azure' || !azureKey.trim() || !settings.azureRegion.trim()) {
-      this.cleanupPreparedAzureSession();
-      return;
-    }
-
-    const signature = this.azureSessionSignature(settings, azureKey);
-    if (this.preparedAzureSession?.signature === signature) return;
-    this.cleanupPreparedAzureSession();
-
-    const prepared: PreparedAzureSession = {
-      signature,
-      promise: this.createAzureSession(settings, azureKey),
-    };
-    this.preparedAzureSession = prepared;
-    void prepared.promise.catch((error) => {
-      if (this.preparedAzureSession === prepared) this.preparedAzureSession = null;
-      console.warn('RemNote Smart TTS could not preconnect to Azure Speech.', error);
-    });
-  }
+  private activeSynthesizer: import('microsoft-cognitiveservices-speech-sdk').SpeechSynthesizer | null = null;
+  private activePlayer: import('microsoft-cognitiveservices-speech-sdk').SpeakerAudioDestination | null = null;
 
   cancel(): void {
     this.generation += 1;
     window.speechSynthesis.cancel();
-    this.cleanupActiveAzureSession();
-    this.cleanupPreparedAzureSession();
+
+    if (this.activeSynthesizer) {
+      this.activeSynthesizer.close();
+      this.activeSynthesizer = null;
+    }
+    if (this.activePlayer) {
+      this.activePlayer.pause();
+      this.activePlayer.close();
+      this.activePlayer = null;
+    }
   }
 
   async speak(
@@ -192,11 +156,7 @@ export class SpeechController {
     azureKey: string,
     callbacks: SpeechPlaybackCallbacks = {},
   ): Promise<SpeechPlaybackResult> {
-    // Stop an earlier utterance but preserve the session prepared specifically
-    // for this card side.
-    this.generation += 1;
-    window.speechSynthesis.cancel();
-    this.cleanupActiveAzureSession();
+    this.cancel();
     const currentGeneration = this.generation;
 
     if (settings.provider === 'azure') {
@@ -269,12 +229,13 @@ export class SpeechController {
     generation: number,
     callbacks: SpeechPlaybackCallbacks,
   ): Promise<void> {
-    const session = await this.takePreparedAzureSession(settings, azureKey);
-    const SpeechSDK = session.sdk;
-    if (generation !== this.generation) {
-      this.closeAzureSession(session);
-      return;
-    }
+    // Reuse the module promise started while the card was being inspected.
+    const SpeechSDK = await preloadAzureSpeechSdk();
+    const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(azureKey, settings.azureRegion.trim());
+    speechConfig.speechSynthesisVoiceName = settings.azureVoices[content.language];
+    // Compressed 24 kHz MP3 is small enough for short flashcards without
+    // sacrificing the clarity of Chinese, English, or Japanese speech.
+    speechConfig.speechSynthesisOutputFormat = SpeechSDK.SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3;
 
     const semanticSegments = content.segments?.map((segment) => segment.trim()).filter(Boolean);
     const azurePayloads = semanticSegments?.length
@@ -287,12 +248,7 @@ export class SpeechController {
       // independent audio element, which previously caused echo. We still
       // observe the SDK's own element so blocked autoplay is never reported as
       // successful playback.
-      // The first payload consumes the preconnected session. Additional chunks
-      // are rare for flashcards and receive their own SDK stream.
-      const payloadSession = payload === azurePayloads[0]
-        ? session
-        : await this.createAzureSession(settings, azureKey);
-      const player = payloadSession.player;
+      const player = new SpeechSDK.SpeakerAudioDestination();
       let markPlaybackStarted: () => void = () => undefined;
       let markPlaybackBlocked: (error: Error) => void = () => undefined;
       const playbackStarted = new Promise<void>((resolve, reject) => {
@@ -357,10 +313,10 @@ export class SpeechController {
           },
         );
       };
-      const synthesizer = payloadSession.synthesizer;
+      const audioConfig = SpeechSDK.AudioConfig.fromSpeakerOutput(player);
+      const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, audioConfig);
       this.activeSynthesizer = synthesizer;
       this.activePlayer = player;
-      this.activeConnection = payloadSession.connection;
 
       const spokenBody = 'segments' in payload
         ? payload.segments
@@ -380,25 +336,34 @@ export class SpeechController {
       ].join('');
 
       await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const finish = (operation: () => void) => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(synthesisTimeoutId);
+          operation();
+        };
+        const synthesisTimeoutId = window.setTimeout(() => {
+          synthesizer.close();
+          if (this.activeSynthesizer === synthesizer) this.activeSynthesizer = null;
+          finish(() => reject(new Error('Azure speech synthesis timed out.')));
+        }, 15_000);
+
         synthesizer.speakSsmlAsync(
           ssml,
           (result) => {
             synthesizer.close();
-            payloadSession.connection.close();
             if (this.activeSynthesizer === synthesizer) this.activeSynthesizer = null;
-            if (this.activeConnection === payloadSession.connection) this.activeConnection = null;
             if (result.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
-              resolve();
+              finish(resolve);
             } else {
-              reject(new Error(result.errorDetails || 'Azure Speech did not return audio.'));
+              finish(() => reject(new Error(result.errorDetails || 'Azure Speech did not return audio.')));
             }
           },
           (error) => {
             synthesizer.close();
-            payloadSession.connection.close();
             if (this.activeSynthesizer === synthesizer) this.activeSynthesizer = null;
-            if (this.activeConnection === payloadSession.connection) this.activeConnection = null;
-            reject(new Error(String(error)));
+            finish(() => reject(new Error(String(error))));
           },
         );
       });
@@ -434,70 +399,6 @@ export class SpeechController {
     }
   }
 
-  private azureSessionSignature(settings: SpeechSettings, azureKey: string): string {
-    // This value is kept only in memory and is never logged or persisted.
-    return `${settings.azureRegion.trim().toLowerCase()}\u0000${azureKey.trim()}`;
-  }
-
-  private async createAzureSession(settings: SpeechSettings, azureKey: string): Promise<AzureSession> {
-    const SpeechSDK = await preloadAzureSpeechSdk();
-    const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(azureKey, settings.azureRegion.trim());
-    speechConfig.speechSynthesisOutputFormat = SpeechSDK.SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3;
-    const player = new SpeechSDK.SpeakerAudioDestination();
-    const audioConfig = SpeechSDK.AudioConfig.fromSpeakerOutput(player);
-    const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, audioConfig);
-    const connection = SpeechSDK.Connection.fromSynthesizer(synthesizer);
-
-    // Opening is intentionally non-blocking: the handshake overlaps RemNote's
-    // card parsing and rendering, and speakSsmlAsync can finish it if needed.
-    connection.openConnection(undefined, (error) => {
-      console.warn('RemNote Smart TTS Azure preconnection was not ready.', error);
-    });
-    return { sdk: SpeechSDK, synthesizer, player, connection };
-  }
-
-  private async takePreparedAzureSession(
-    settings: SpeechSettings,
-    azureKey: string,
-  ): Promise<AzureSession> {
-    const signature = this.azureSessionSignature(settings, azureKey);
-    const prepared = this.preparedAzureSession;
-    if (prepared?.signature === signature) {
-      this.preparedAzureSession = null;
-      return prepared.promise;
-    }
-    if (prepared) this.cleanupPreparedAzureSession();
-    return this.createAzureSession(settings, azureKey);
-  }
-
-  private cleanupPreparedAzureSession(): void {
-    const prepared = this.preparedAzureSession;
-    this.preparedAzureSession = null;
-    if (!prepared) return;
-    void prepared.promise.then(
-      (session) => this.closeAzureSession(session),
-      () => undefined,
-    );
-  }
-
-  private cleanupActiveAzureSession(): void {
-    if (this.activeSynthesizer) {
-      this.activeSynthesizer.close();
-      this.activeSynthesizer = null;
-    }
-    if (this.activeConnection) {
-      this.activeConnection.close();
-      this.activeConnection = null;
-    }
-    this.cleanupAzureAudio();
-  }
-
-  private closeAzureSession(session: AzureSession): void {
-    session.synthesizer.close();
-    session.connection.close();
-    session.player.pause();
-    session.player.close();
-  }
 }
 
 export function getAvailableBrowserVoices(): SpeechSynthesisVoice[] {
