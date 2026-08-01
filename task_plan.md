@@ -120,7 +120,7 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 
 ### Phase 14: Custom semantic prompt templates
 
-**Status:** shelved
+**Status:** complete — shelved by product decision
 
 **Decision:** Technically feasible, but intentionally deferred because automatic semantic intent detection and template customization would add substantial settings, maintenance, and inference cost for uncertain practical benefit. Preserve the current stable `What` fallback.
 
@@ -173,3 +173,4 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 | Reconnected post-reveal page snapshot also timed out | 2 | Stop Chrome retries and inspect SDK widget/event surfaces plus runtime Card metadata instead. |
 | SDK settings symbol search returned no declaration matches | 1 | Use the registration methods already proven by the project and design around dropdown, string, boolean, and the existing custom popup. |
 | One Culture Agency PDF open returned an internal reader error | 1 | Use the successfully indexed official excerpt and Japan Foundation worksheet; do not retry the same document reader. |
+| Plan checker treated `shelved` as unfinished | 1 | Keep the feature visibly labeled shelved while marking the product-decision phase complete. |
