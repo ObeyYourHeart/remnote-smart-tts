@@ -97,7 +97,7 @@ function voiceOptionLabel(voice: AzureVoice): string {
   const name = voice.localName === voice.displayName
     ? voice.displayName
     : `${voice.localName} / ${voice.displayName}`;
-  return [name, voice.gender, voice.voiceType].filter(Boolean).join(' · ');
+  return [name, voice.gender, 'HD'].filter(Boolean).join(' · ');
 }
 
 function voicesIncludingSelection(

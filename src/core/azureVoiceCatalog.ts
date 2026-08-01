@@ -23,19 +23,18 @@ export type AzureVoiceCatalog = Record<SupportedLanguage, AzureVoice[]>;
 
 export const CURATED_AZURE_VOICES: Record<SupportedLanguage, AzureVoice[]> = {
   zh: [
-    createPreset('zh-CN-XiaoxiaoNeural', 'Xiaoxiao', '晓晓', 'Female', 'zh-CN'),
-    createPreset('zh-CN-XiaoxiaoMultilingualNeural', 'Xiaoxiao Multilingual', '晓晓（多语言）', 'Female', 'zh-CN'),
-    createPreset('zh-CN-YunxiNeural', 'Yunxi', '云希', 'Male', 'zh-CN'),
+    createPreset('zh-CN-Xiaoxiao:DragonHDFlashLatestNeural', 'Xiaoxiao Dragon HD Flash Latest', '晓晓 Dragon HD Flash Latest', 'Female', 'zh-CN'),
+    createPreset('zh-CN-Xiaochen:DragonHDLatestNeural', 'Xiaochen Dragon HD Latest', '晓辰 Dragon HD Latest', 'Female', 'zh-CN'),
+    createPreset('zh-CN-Yunfan:DragonHDLatestNeural', 'Yunfan Dragon HD Latest', '云帆 Dragon HD Latest', 'Male', 'zh-CN'),
   ],
   en: [
-    createPreset('en-US-JennyNeural', 'Jenny', 'Jenny', 'Female', 'en-US'),
-    createPreset('en-US-AriaNeural', 'Aria', 'Aria', 'Female', 'en-US'),
-    createPreset('en-US-GuyNeural', 'Guy', 'Guy', 'Male', 'en-US'),
+    createPreset('en-US-Jenny:DragonHDLatestNeural', 'Jenny Dragon HD Latest', 'Jenny Dragon HD Latest', 'Female', 'en-US'),
+    createPreset('en-US-Ava:DragonHDLatestNeural', 'Ava Dragon HD Latest', 'Ava Dragon HD Latest', 'Female', 'en-US'),
+    createPreset('en-US-Andrew:DragonHDLatestNeural', 'Andrew Dragon HD Latest', 'Andrew Dragon HD Latest', 'Male', 'en-US'),
   ],
   ja: [
-    createPreset('ja-JP-NanamiNeural', 'Nanami', '七海', 'Female', 'ja-JP'),
-    createPreset('ja-JP-AoiNeural', 'Aoi', '葵', 'Female', 'ja-JP'),
-    createPreset('ja-JP-KeitaNeural', 'Keita', '圭太', 'Male', 'ja-JP'),
+    createPreset('ja-JP-Nanami:DragonHDLatestNeural', 'Nanami Dragon HD Latest', '七海 Dragon HD Latest', 'Female', 'ja-JP'),
+    createPreset('ja-JP-Masaru:DragonHDLatestNeural', 'Masaru Dragon HD Latest', '勝 Dragon HD Latest', 'Male', 'ja-JP'),
   ],
 };
 
@@ -53,7 +52,7 @@ function createPreset(
     gender,
     locale,
     localeName: locale,
-    voiceType: 'Neural',
+    voiceType: 'Neural HD',
     status: 'GA',
     styles: [],
     secondaryLocales: [],
@@ -76,6 +75,14 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
+/**
+ * Azure's VoiceType field can label preview MAI voices as NeuralHD. The voice
+ * name is the stable contract: genuine Speech HD voices use a DragonHD model.
+ */
+export function isAzureHdVoiceName(shortName: string): boolean {
+  return /:DragonHD/i.test(shortName.trim());
+}
+
 /** Convert Microsoft's response into the three locales currently supported by the plugin. */
 export function parseAzureVoiceCatalog(input: unknown): AzureVoiceCatalog {
   const catalog: AzureVoiceCatalog = { zh: [], en: [], ja: [] };
@@ -88,7 +95,7 @@ export function parseAzureVoiceCatalog(input: unknown): AzureVoiceCatalog {
     const shortName = stringValue(raw.ShortName);
     const locale = stringValue(raw.Locale);
     const language = LANGUAGE_BY_LOCALE[locale];
-    if (!shortName || !language || seen.has(shortName)) continue;
+    if (!shortName || !language || seen.has(shortName) || !isAzureHdVoiceName(shortName)) continue;
 
     seen.add(shortName);
     catalog[language].push({
