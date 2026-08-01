@@ -1,10 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  buildMultiLineQuestion,
   buildOrderedItemQuestion,
   buildStructuredAnswer,
   buildStructuredAnswerSegments,
 } from '../src/core/structuredCards';
+
+test('asks what a Multi-Line set includes in every supported language', () => {
+  assert.equal(buildMultiLineQuestion('市销率的缺陷', 'zh'), '市销率的缺陷包括什么？');
+  assert.equal(buildMultiLineQuestion('the P/S ratio', 'en'), 'What does the P/S ratio include?');
+  assert.equal(buildMultiLineQuestion('株価売上高倍率の欠点', 'ja'), '株価売上高倍率の欠点には何が含まれますか？');
+});
 
 test('builds localized questions for each tested ordered item', () => {
   assert.equal(

@@ -57,7 +57,7 @@ test('builds a Concept Multi-Line plan even when the parent has no back text', a
   );
 
   assert.equal(plan?.kind, 'multi-line-forward');
-  assert.equal(plan?.question.text, '估值指标是什么？');
+  assert.equal(plan?.question.text, '估值指标包括什么？');
   assert.equal(plan?.answer.text, '估值指标包括：市盈率；市净率。');
 });
 
@@ -192,7 +192,7 @@ test('keeps the parent Concept in a structured Descriptor prompt', async () => {
   );
 
   assert.equal(plan?.kind, 'multi-line-forward');
-  assert.equal(plan?.question.text, '市盈率的用途是什么？');
+  assert.equal(plan?.question.text, '市盈率的用途包括什么？');
   assert.equal(plan?.answer.text, '市盈率的用途包括：公司估值；同业比较。');
 });
 
@@ -220,7 +220,7 @@ test('reads an unmarked Descriptor with direct Multi-Line answer items', async (
   );
 
   assert.equal(plan?.kind, 'multi-line-forward');
-  assert.equal(plan?.question.text, '市销率的缺陷是什么？');
+  assert.equal(plan?.question.text, '市销率的缺陷包括什么？');
   assert.equal(
     plan?.answer.text,
     '市销率的缺陷包括：忽视利润水平，只看收入；易受会计政策和季节性波动影响；不考虑资本结构和负债水平。',
@@ -299,7 +299,7 @@ test('climbs from a queue child Rem to its Multi-Line parent', async () => {
   );
 
   assert.equal(plan?.kind, 'multi-line-forward');
-  assert.equal(plan?.question.text, '市销率的缺陷');
+  assert.equal(plan?.question.text, '市销率的缺陷包括什么？');
   assert.equal(plan?.answer.text, '答案包括：忽视利润水平；易受季节波动影响。');
 });
 

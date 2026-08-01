@@ -1,5 +1,12 @@
-import { declareIndexPlugin, type ReactRNPlugin, WidgetLocation } from '@remnote/plugin-sdk';
+import { AppEvents, declareIndexPlugin, type ReactRNPlugin, WidgetLocation } from '@remnote/plugin-sdk';
 import { NATIVE_SETTING_IDS, registerNativeSettings } from '../core/nativeSettings';
+import { readAzureKey, readSettings } from '../core/settings';
+import { preloadAzureSpeechSdk, SpeechController } from '../core/speech';
+import {
+  createSpeechState,
+  isPersistentSpeechMessage,
+  type PersistentSpeechMessage,
+} from '../core/speechMessages';
 
 const OFFICIAL_TTS_CSS_ID = 'smart-tts-replace-remnote-controls';
 const QUEUE_CONTROL_POSITION_CSS = `
@@ -29,6 +36,57 @@ const HIDE_OFFICIAL_TTS_CONTROLS_CSS = `
 
 let appearancePollId: number | undefined;
 let lastReplaceControls: boolean | undefined;
+const speechController = new SpeechController();
+const SPEECH_MESSAGE_LISTENER_KEY = 'remnote-smart-tts-persistent-speech';
+let activeSpeechRequestId: string | undefined;
+
+async function handleSpeechMessage(plugin: ReactRNPlugin, message: PersistentSpeechMessage): Promise<void> {
+  if (message.type === 'speech-stop') {
+    if (!message.requestId || message.requestId === activeSpeechRequestId) {
+      speechController.cancel();
+      activeSpeechRequestId = undefined;
+    }
+    return;
+  }
+  if (message.type !== 'speech-request') return;
+
+  // A request that waited too long for the persistent listener is ignored so
+  // the card widget can safely use its local compatibility path without echo.
+  if (Date.now() - message.sentAt > 200) return;
+  activeSpeechRequestId = message.requestId;
+
+  try {
+    await plugin.messaging.broadcast(createSpeechState(message.requestId, 'accepted'));
+    const [settings, azureKey] = await Promise.all([readSettings(plugin), readAzureKey(plugin)]);
+    const result = await speechController.speak(message.content, settings, azureKey, {
+      onPlaybackStart: () => {
+        if (activeSpeechRequestId === message.requestId) {
+          void plugin.messaging.broadcast(createSpeechState(message.requestId, 'speaking'));
+        }
+      },
+    });
+    if (activeSpeechRequestId !== message.requestId) return;
+    activeSpeechRequestId = undefined;
+    await plugin.messaging.broadcast(createSpeechState(message.requestId, 'complete', { result }));
+  } catch (error) {
+    if (activeSpeechRequestId !== message.requestId) return;
+    activeSpeechRequestId = undefined;
+    const rawMessage = error instanceof Error ? error.message : String(error);
+    const safeMessage = await redactAzureKey(plugin, rawMessage);
+    await plugin.messaging.broadcast(createSpeechState(message.requestId, 'error', { error: safeMessage }));
+  }
+}
+
+async function redactAzureKey(plugin: ReactRNPlugin, message: string): Promise<string> {
+  try {
+    const azureKey = await readAzureKey(plugin);
+    return azureKey ? message.replaceAll(azureKey, '[redacted]') : message;
+  } catch {
+    // If local storage itself is unavailable, avoid forwarding an unknown raw
+    // error that could contain credential material.
+    return 'Persistent speech service failed.';
+  }
+}
 
 async function syncQueueAppearance(plugin: ReactRNPlugin): Promise<void> {
   try {
@@ -47,6 +105,20 @@ async function onActivate(plugin: ReactRNPlugin) {
   await registerNativeSettings(plugin);
   await syncQueueAppearance(plugin);
   appearancePollId = window.setInterval(() => void syncQueueAppearance(plugin), 1200);
+  // The index entry stays alive across queue cards, so load the optional Azure
+  // runtime here instead of repeating that work inside every card iframe.
+  void readSettings(plugin).then((settings) => {
+    if (settings.provider === 'azure') return preloadAzureSpeechSdk();
+    return undefined;
+  }).catch((error) => {
+    console.error('RemNote Smart TTS could not preload Azure Speech.', error);
+  });
+  plugin.event.addListener(AppEvents.MessageBroadcast, SPEECH_MESSAGE_LISTENER_KEY, (message) => {
+    if (!isPersistentSpeechMessage(message)) return;
+    void handleSpeechMessage(plugin, message).catch((error) => {
+      console.error('RemNote Smart TTS persistent speech service failed.', error);
+    });
+  });
 
   // This compact popup is only for local credentials, dynamic voices, and previews.
   await plugin.app.registerWidget('settings', WidgetLocation.Popup, {
@@ -71,6 +143,8 @@ async function onDeactivate(plugin: ReactRNPlugin) {
   appearancePollId = undefined;
   lastReplaceControls = undefined;
   await plugin.app.registerCSS(OFFICIAL_TTS_CSS_ID, '');
+  speechController.dispose();
+  plugin.event.removeListener(AppEvents.MessageBroadcast, SPEECH_MESSAGE_LISTENER_KEY);
 
   // Explicit cleanup prevents stale widgets after disabling or updating the plugin.
   await plugin.app.unregisterWidget('settings', WidgetLocation.Popup);

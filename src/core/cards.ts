@@ -5,6 +5,7 @@ import { detectLanguage } from './language';
 import { piecesToPlainText, renderActiveCloze, richTextToPieces } from './richText';
 import { readStructuredCard, resolveStructuredCardRoot } from './structuredCardReader';
 import {
+  buildMultiLineQuestion,
   buildOrderedItemQuestion,
   buildStructuredAnswer,
   buildStructuredAnswerSegments,
@@ -141,6 +142,8 @@ export async function buildCardSpeechPlan(
     const readsOneListItem = activeListItemIndex >= 0;
     if (readsOneListItem && cardType !== 'backward') {
       questionText = buildOrderedItemQuestion(frontText, activeListItemIndex, questionLanguage);
+    } else if (structuredCard.kind === 'multi-line' && cardType !== 'backward') {
+      questionText = buildMultiLineQuestion(subject || frontText, questionLanguage);
     }
     const answerItems = readsOneListItem
       ? [structuredCard.items[activeListItemIndex]]

@@ -18,7 +18,7 @@ RemNote Smart TTS is a structure-aware speech plugin for the RemNote review queu
 | Concept | Turns the Concept into a complete question and answer, such as “What is the P/E ratio?” |
 | Descriptor | Includes the parent Concept, such as “What is the formula of the P/E ratio?” |
 | Cloze | Replaces only the active blank with `什么`, `what`, or `なに`. |
-| Multi-Line / Set | Reads answer children as separate semantic sentences. |
+| Multi-Line / Set | Asks what the set includes, then reads answer children as separate semantic sentences. |
 | Ordered List-Answer | Asks for the current step and reads only the item currently being tested. |
 
 The question and answer sides are detected independently, so a bilingual card can use different voices on each side.
@@ -41,7 +41,11 @@ Browser mode uses voices exposed through the Web Speech API. Availability depend
 
 #### Azure Speech
 
-Azure mode uses your own Speech resource, key, and region. Advanced Voice Setup dynamically loads the complete Azure catalog compatible with `zh-CN`, `en-US`, and `ja-JP`, while curated presets remain available if the catalog request fails. Azure usage may incur charges under your Microsoft subscription.
+Azure mode uses your own Speech resource, key, and region. Advanced Voice Setup dynamically loads the complete Azure catalog compatible with `zh-CN`, `en-US`, and `ja-JP`, while curated presets remain available if the catalog request fails. The plugin streams compressed MP3 audio to reduce time to first sound. Azure usage may incur charges under your Microsoft subscription.
+
+Within one review queue, the plugin reuses the Azure Speech connection after a completed utterance. The first utterance can still include Azure connection and model startup latency; later question and answer playback avoids repeating that connection handshake.
+
+Azure playback is owned by the plugin's persistent index process rather than the temporary card control iframe. This keeps the connection alive when RemNote replaces the visible card UI; the card-local player remains available as a compatibility fallback.
 
 The Speech Key is stored only in local RemNote plugin storage. It is never committed to this repository or placed in synchronized settings. Only text being synthesized is sent to the configured Azure Speech endpoint.
 
@@ -92,7 +96,7 @@ RemNote Smart TTS 是一个理解卡片结构的 RemNote 复习队列朗读插�
 | Concept | 把概念组织成完整问答，例如“市盈率是什么？”“市盈率是……”。 |
 | Descriptor | 带上所属 Concept，例如“市盈率的算法是什么？”“市盈率的算法是……”。 |
 | Cloze | 只把当前挖空替换为 `什么`、`what` 或 `なに`。 |
-| Multi-Line / Set | 把各个答案 Rem 作为独立语义句依次朗读。 |
+| Multi-Line / Set | 用“包括什么”提问，再把各个答案 Rem 作为独立语义句依次朗读。 |
 | Ordered List-Answer | 询问当前第几步，并只朗读当前正在测试的项目。 |
 
 问题面和答案面会分别判断语言，因此中英或中日双语卡片可以在两面自动切换声音。
@@ -115,7 +119,7 @@ RemNote Smart TTS 是一个理解卡片结构的 RemNote 复习队列朗读插�
 
 #### Azure Speech
 
-Azure 模式需要你自己的 Speech resource、Key 和 Region。高级声音设置会动态加载 Azure 中与 `zh-CN`、`en-US`、`ja-JP` 兼容的完整目录；加载失败时仍可使用内置精选声音。Azure 可能按照你的 Microsoft 订阅产生费用。
+Azure 模式需要你自己的 Speech resource、Key 和 Region。高级声音设置会动态加载 Azure 中与 `zh-CN`、`en-US`、`ja-JP` 兼容的完整目录；加载失败时仍可使用内置精选声音。插件以压缩 MP3 流式播放，从而缩短首次出声等待。Azure 可能按照你的 Microsoft 订阅产生费用。
 
 Speech Key 只保存在 RemNote 插件的本机 storage，不会提交到仓库，也不会写入同步设置。只有当前需要合成的文字会发送到你配置的 Azure Speech endpoint。
 

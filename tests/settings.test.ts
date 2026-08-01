@@ -26,6 +26,20 @@ test('normalizes the bilingual interface language', () => {
   assert.equal(normalizeSettings({ uiLanguage: 'en' }).uiLanguage, 'en');
 });
 
+test('preserves saved Azure voices from every model family', () => {
+  const settings = normalizeSettings({
+    azureVoices: {
+      zh: 'zh-CN-XiaoxiaoNeural',
+      en: 'en-US-JennyNeural',
+      ja: 'ja-JP-Sakura:MAI-Voice-2-Flash',
+    },
+  });
+
+  assert.equal(settings.azureVoices.zh, 'zh-CN-XiaoxiaoNeural');
+  assert.equal(settings.azureVoices.en, 'en-US-JennyNeural');
+  assert.equal(settings.azureVoices.ja, 'ja-JP-Sakura:MAI-Voice-2-Flash');
+});
+
 test('reads everyday controls from RemNote native plugin settings', async () => {
   const values = new Map<string, unknown>([
     [NATIVE_SETTING_IDS.uiLanguage, 'zh'],

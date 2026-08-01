@@ -22,9 +22,9 @@ export const DEFAULT_SETTINGS: SpeechSettings = {
   },
   azureRegion: '',
   azureVoices: {
-    zh: 'zh-CN-XiaoxiaoNeural',
-    en: 'en-US-JennyNeural',
-    ja: 'ja-JP-NanamiNeural',
+    zh: 'zh-CN-Xiaoxiao:DragonHDFlashLatestNeural',
+    en: 'en-US-Jenny:DragonHDLatestNeural',
+    ja: 'ja-JP-Nanami:DragonHDLatestNeural',
   },
   clozeWords: {
     zh: '什么',
@@ -49,6 +49,17 @@ export function normalizeSettings(saved?: Partial<SpeechSettings> | null): Speec
   const defaultLanguage = LANGUAGES.includes(saved?.defaultLanguage as SupportedLanguage)
     ? (saved?.defaultLanguage as SupportedLanguage)
     : DEFAULT_SETTINGS.defaultLanguage;
+  const savedAzureVoices = saved?.azureVoices;
+  // Preserve every valid Azure catalog choice, including Standard Neural and
+  // preview models. Defaults are used only when no voice was saved.
+  const normalizeAzureVoice = (language: SupportedLanguage): string =>
+    savedAzureVoices?.[language]?.trim() || DEFAULT_SETTINGS.azureVoices[language];
+  const normalizedAzureVoices: SpeechSettings['azureVoices'] = {
+    zh: normalizeAzureVoice('zh'),
+    en: normalizeAzureVoice('en'),
+    ja: normalizeAzureVoice('ja'),
+  };
+
   return {
     ...DEFAULT_SETTINGS,
     ...saved,
@@ -64,8 +75,7 @@ export function normalizeSettings(saved?: Partial<SpeechSettings> | null): Speec
       ...saved?.browserVoices,
     },
     azureVoices: {
-      ...DEFAULT_SETTINGS.azureVoices,
-      ...saved?.azureVoices,
+      ...normalizedAzureVoices,
     },
     clozeWords: {
       ...DEFAULT_SETTINGS.clozeWords,

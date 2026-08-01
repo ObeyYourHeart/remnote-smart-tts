@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   fetchAzureVoiceCatalog,
+  azureVoiceModelLabel,
+  isAzureHdVoiceName,
   normalizeAzureRegion,
   parseAzureVoiceCatalog,
 } from '../src/core/azureVoiceCatalog';
@@ -12,22 +14,40 @@ test('normalizes a valid Azure region and rejects arbitrary hosts', () => {
   assert.throws(() => normalizeAzureRegion(''), /required/);
 });
 
-test('filters the Azure catalog to supported locales and removes duplicates', () => {
+test('keeps every supported Azure model and removes duplicates', () => {
   const catalog = parseAzureVoiceCatalog([
-    { ShortName: 'zh-CN-YunxiNeural', DisplayName: 'Yunxi', LocalName: '云希', Gender: 'Male', Locale: 'zh-CN' },
-    { ShortName: 'zh-CN-XiaoxiaoNeural', DisplayName: 'Xiaoxiao', LocalName: '晓晓', Gender: 'Female', Locale: 'zh-CN' },
-    { ShortName: 'zh-CN-XiaoxiaoNeural', DisplayName: 'Duplicate', Locale: 'zh-CN' },
-    { ShortName: 'en-US-JennyNeural', DisplayName: 'Jenny', Locale: 'en-US' },
+    { ShortName: 'zh-CN-Yunfan:DragonHDLatestNeural', DisplayName: 'Yunfan', LocalName: '云帆', Gender: 'Male', Locale: 'zh-CN' },
+    { ShortName: 'zh-CN-Xiaoxiao:DragonHDFlashLatestNeural', DisplayName: 'Xiaoxiao', LocalName: '晓晓', Gender: 'Female', Locale: 'zh-CN' },
+    { ShortName: 'zh-CN-Xiaoxiao:DragonHDFlashLatestNeural', DisplayName: 'Duplicate', Locale: 'zh-CN' },
+    { ShortName: 'en-US-Jenny:DragonHDLatestNeural', DisplayName: 'Jenny', Locale: 'en-US' },
+    { ShortName: 'ja-JP-Sakura:MAI-Voice-2-Flash', DisplayName: 'Sakura', VoiceType: 'NeuralHD', Locale: 'ja-JP' },
+    { ShortName: 'ja-JP-NanamiNeural', DisplayName: 'Nanami', VoiceType: 'Neural', Locale: 'ja-JP' },
     { ShortName: 'fr-FR-DeniseNeural', DisplayName: 'Denise', Locale: 'fr-FR' },
     { DisplayName: 'Missing short name', Locale: 'ja-JP' },
   ]);
 
   assert.deepEqual(catalog.zh.map((voice) => voice.shortName), [
-    'zh-CN-XiaoxiaoNeural',
-    'zh-CN-YunxiNeural',
+    'zh-CN-Xiaoxiao:DragonHDFlashLatestNeural',
+    'zh-CN-Yunfan:DragonHDLatestNeural',
   ]);
-  assert.equal(catalog.en[0]?.shortName, 'en-US-JennyNeural');
-  assert.deepEqual(catalog.ja, []);
+  assert.equal(catalog.en[0]?.shortName, 'en-US-Jenny:DragonHDLatestNeural');
+  assert.deepEqual(catalog.ja.map((voice) => voice.shortName), [
+    'ja-JP-NanamiNeural',
+    'ja-JP-Sakura:MAI-Voice-2-Flash',
+  ]);
+});
+
+test('identifies HD voices by the DragonHD model name instead of VoiceType', () => {
+  assert.equal(isAzureHdVoiceName('ja-JP-Nanami:DragonHDLatestNeural'), true);
+  assert.equal(isAzureHdVoiceName('zh-CN-Xiaoxiao:DragonHDFlashLatestNeural'), true);
+  assert.equal(isAzureHdVoiceName('ja-JP-Sakura:MAI-Voice-2-Flash'), false);
+  assert.equal(isAzureHdVoiceName('ja-JP-NanamiNeural'), false);
+});
+
+test('labels Azure models from their stable short names', () => {
+  assert.equal(azureVoiceModelLabel({ shortName: 'zh-CN-Xiaoxiao:DragonHDFlashLatestNeural', voiceType: 'NeuralHD' }), 'Dragon HD Flash');
+  assert.equal(azureVoiceModelLabel({ shortName: 'ja-JP-Sakura:MAI-Voice-2-Flash', voiceType: 'NeuralHD' }), 'MAI Flash');
+  assert.equal(azureVoiceModelLabel({ shortName: 'ja-JP-NanamiNeural', voiceType: 'Neural' }), 'Neural');
 });
 
 test('requests the regional Azure endpoint with the key only in a header', async () => {
@@ -37,7 +57,7 @@ test('requests the regional Azure endpoint with the key only in a header', async
     requestedUrl = String(input);
     requestedHeaders = init?.headers;
     return new Response(JSON.stringify([
-      { ShortName: 'ja-JP-NanamiNeural', DisplayName: 'Nanami', Locale: 'ja-JP' },
+      { ShortName: 'ja-JP-Nanami:DragonHDLatestNeural', DisplayName: 'Nanami', Locale: 'ja-JP' },
     ]), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }) as typeof fetch;
 
@@ -49,7 +69,7 @@ test('requests the regional Azure endpoint with the key only in a header', async
   assert.equal(requestedUrl, 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/voices/list');
   assert.deepEqual(requestedHeaders, { 'Ocp-Apim-Subscription-Key': 'secret-test-key' });
   assert.equal(requestedUrl.includes('secret-test-key'), false);
-  assert.equal(catalog.ja[0]?.shortName, 'ja-JP-NanamiNeural');
+  assert.equal(catalog.ja[0]?.shortName, 'ja-JP-Nanami:DragonHDLatestNeural');
 });
 
 test('reports HTTP failures without exposing the Speech Key', async () => {
