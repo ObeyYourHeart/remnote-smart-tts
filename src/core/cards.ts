@@ -243,7 +243,10 @@ export async function buildCardSpeechPlan(
       if (localFrontText) contextSegments.push(localFrontText);
     }
     const question = addClozeContext(rendered.questionText, contextSegments, contextLanguage);
-    const rawAnswer = rendered.answerText || piecesToPlainText(pieces);
+    // Read the completed sentence after reveal instead of speaking only the
+    // missing word. This keeps an answer meaningful without looking at the
+    // screen: "主要和蛋白质的合成有关", not merely "蛋白质".
+    const rawAnswer = piecesToPlainText(pieces) || rendered.answerText;
     const answerLanguage = detectLanguage(`${contextSegments.join(' ')} ${rawAnswer}`, contextLanguage);
     const answer = addClozeContext(rawAnswer, contextSegments, answerLanguage);
 

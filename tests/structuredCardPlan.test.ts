@@ -69,7 +69,8 @@ test('reads a Cloze in a Descriptor answer with its Concept and Descriptor', asy
   assert.equal(plan?.kind, 'cloze');
   assert.equal(plan?.question.text, '叶绿体的结构。基质中含有 什么。');
   assert.deepEqual(plan?.question.segments, ['叶绿体的结构', '基质中含有 什么。']);
-  assert.equal(plan?.answer.text, '叶绿体的结构。DNA');
+  assert.equal(plan?.answer.text, '叶绿体的结构。基质中含有DNA。');
+  assert.deepEqual(plan?.answer.segments, ['叶绿体的结构', '基质中含有DNA。']);
 });
 
 test('inherits a complete Concept and Descriptor path for a child Cloze Rem', async () => {
@@ -113,7 +114,7 @@ test('inherits a complete Concept and Descriptor path for a child Cloze Rem', as
 
   assert.equal(plan?.question.text, '细胞的结构的细胞核。主要储存 什么。');
   assert.deepEqual(plan?.question.segments, ['细胞的结构的细胞核', '主要储存 什么。']);
-  assert.equal(plan?.answer.text, '细胞的结构的细胞核。遗传物质');
+  assert.equal(plan?.answer.text, '细胞的结构的细胞核。主要储存遗传物质。');
 });
 
 test('keeps the front of an ordinary A/B Rem whose Cloze is in the answer', async () => {
@@ -158,7 +159,96 @@ test('keeps the front of an ordinary A/B Rem whose Cloze is in the answer', asyn
     '附着在粗面内质网',
     '主要和 什么 的合成有关',
   ]);
-  assert.equal(plan?.answer.text, '核糖体的位置不同。附着在粗面内质网。蛋白质');
+  assert.equal(
+    plan?.answer.text,
+    '核糖体的位置不同。附着在粗面内质网。主要和蛋白质的合成有关',
+  );
+});
+
+test('reads a direct Concept child Cloze as one contextual speech plan', async () => {
+  const conceptRem = {
+    _id: 'direct-ribosome-concept',
+    type: 1,
+    text: ['核糖体'],
+  } as unknown as Rem;
+  const clozeRem = {
+    _id: 'direct-ribosome-cloze',
+    type: 0,
+    text: [
+      '主要参与',
+      { i: 'm', text: '蛋白质', cId: 'direct-concept-cloze' },
+      '的合成',
+    ],
+    backText: [],
+    hasPowerup: async () => false,
+    isCardItem: async () => false,
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(clozeRem, { clozeId: 'direct-concept-cloze' }),
+    { remId: clozeRem._id, cardId: 'direct-concept-cloze-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.question.text, '核糖体。主要参与 什么 的合成');
+  assert.deepEqual(plan?.question.segments, ['核糖体', '主要参与 什么 的合成']);
+  assert.equal(plan?.answer.text, '核糖体。主要参与蛋白质的合成');
+  assert.deepEqual(plan?.answer.segments, ['核糖体', '主要参与蛋白质的合成']);
+});
+
+test('keeps direct Concept child Clozes contextual in English and Japanese', async () => {
+  const cases = [
+    {
+      concept: 'ribosome',
+      sentenceStart: 'It makes ',
+      answer: 'proteins',
+      sentenceEnd: '.',
+      question: 'ribosome. It makes what.',
+      completed: 'ribosome. It makes proteins.',
+    },
+    {
+      concept: 'リボソーム',
+      sentenceStart: '主に',
+      answer: 'タンパク質',
+      sentenceEnd: 'を合成します。',
+      question: 'リボソーム。主に なに を合成します。',
+      completed: 'リボソーム。主にタンパク質を合成します。',
+    },
+  ];
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  for (const [index, currentCase] of cases.entries()) {
+    const conceptRem = {
+      _id: `direct-concept-${index}`,
+      type: 1,
+      text: [currentCase.concept],
+    } as unknown as Rem;
+    const clozeId = `direct-cloze-${index}`;
+    const clozeRem = {
+      _id: `direct-child-${index}`,
+      type: 0,
+      text: [
+        currentCase.sentenceStart,
+        { i: 'm', text: currentCase.answer, cId: clozeId },
+        currentCase.sentenceEnd,
+      ],
+      backText: [],
+      hasPowerup: async () => false,
+      isCardItem: async () => false,
+      getParentRem: async () => conceptRem,
+    } as unknown as Rem;
+
+    const plan = await buildCardSpeechPlan(
+      makePlugin(clozeRem, { clozeId }),
+      { remId: clozeRem._id, cardId: `${clozeId}-card`, revealed: false },
+      DEFAULT_SETTINGS,
+    );
+
+    assert.equal(plan?.question.text, currentCase.question);
+    assert.equal(plan?.answer.text, currentCase.completed);
+  }
 });
 
 test('builds a Concept Multi-Line plan even when the parent has no back text', async () => {
