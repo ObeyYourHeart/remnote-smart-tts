@@ -1,17 +1,17 @@
 {
   "manifestVersion": 1,
   "id": "card-speech-studio",
-  "name": "Smart Flashcard TTS",
+  "name": "RemNote Smart TTS",
   "author": "LeeSin",
-  "repoUrl": "https://github.com/ObeyYourHeart/smart-flashcard-tts",
+  "repoUrl": "https://github.com/ObeyYourHeart/remnote-smart-tts",
   "version": {
     "major": 0,
-    "minor": 3,
+    "minor": 8,
     "patch": 0
   },
   "theme": [],
   "enableOnMobile": false,
-  "description": "Complete, structure-aware flashcard reading with Cloze prompts, multilingual voices, and optional Azure Neural TTS.",
+  "description": "Structure-aware multilingual speech for RemNote Concept, Descriptor, Cloze, Multi-Line, and List-Answer cards.",
   "requestNative": false,
   "requiredScopes": [
     {

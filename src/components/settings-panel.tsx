@@ -1,5 +1,11 @@
 import type { RNPlugin } from '@remnote/plugin-sdk';
 import { useEffect, useMemo, useState } from 'react';
+import {
+  CURATED_AZURE_VOICES,
+  fetchAzureVoiceCatalog,
+  type AzureVoice,
+  type AzureVoiceCatalog,
+} from '../core/azureVoiceCatalog';
 import { readAzureKey, readSettings, writeAzureKey, writeSettings } from '../core/settings';
 import { getAvailableBrowserVoices, SpeechController } from '../core/speech';
 import type { InterfaceLanguage, LanguageVoiceMap, SpeechSettings, SupportedLanguage } from '../core/types';
@@ -11,36 +17,13 @@ const LANGUAGE_META: Record<SupportedLanguage, { english: string; native: string
   ja: { english: 'Japanese', native: '日本語', locale: 'ja-JP', sample: 'こんにちは。今日も日本語を勉強しましょう。' },
 };
 
-const AZURE_VOICE_OPTIONS: Record<SupportedLanguage, Array<{ value: string; label: string }>> = {
-  zh: [
-    { value: 'zh-CN-XiaoxiaoNeural', label: 'Xiaoxiao Neural — Recommended' },
-    { value: 'zh-CN-XiaoxiaoMultilingualNeural', label: 'Xiaoxiao Multilingual' },
-    { value: 'zh-CN-Xiaoxiao:DragonHDFlashLatestNeural', label: 'Xiaoxiao Dragon HD' },
-    { value: 'zh-CN-YunxiNeural', label: 'Yunxi Neural — Male' },
-  ],
-  en: [
-    { value: 'en-US-JennyNeural', label: 'Jenny Neural — Recommended' },
-    { value: 'en-US-AriaNeural', label: 'Aria Neural' },
-    { value: 'en-US-GuyNeural', label: 'Guy Neural — Male' },
-    { value: 'en-US-RyanMultilingualNeural', label: 'Ryan Multilingual — Male' },
-  ],
-  ja: [
-    { value: 'ja-JP-NanamiNeural', label: 'Nanami Neural — Recommended' },
-    { value: 'ja-JP-Nanami:DragonHDLatestNeural', label: 'Nanami Dragon HD' },
-    { value: 'ja-JP-AoiNeural', label: 'Aoi Neural' },
-    { value: 'ja-JP-ShioriNeural', label: 'Shiori Neural' },
-    { value: 'ja-JP-KeitaNeural', label: 'Keita Neural — Male' },
-    { value: 'ja-JP-MasaruMultilingualNeural', label: 'Masaru Multilingual — Male' },
-  ],
-};
-
 const COPY = {
   en: {
-    eyebrow: 'SMART FLASHCARD TTS',
+    eyebrow: 'REMNOTE SMART TTS',
     title: 'Advanced voice setup',
     subtitle: 'Choose and test the voice used for each card language.',
     nativeNoticeTitle: 'Everyday settings are now built into RemNote',
-    nativeNoticeBody: 'Open Settings → Plugins → Smart Flashcard TTS for autoplay, Cloze prompts, rate, volume, and provider.',
+    nativeNoticeBody: 'Open Settings → Plugins → RemNote Smart TTS for autoplay, Cloze prompts, rate, volume, and provider.',
     provider: 'Active provider',
     browser: 'Browser voice',
     azure: 'Azure Neural Voice',
@@ -48,9 +31,13 @@ const COPY = {
     key: 'Speech key',
     keyPlaceholder: 'Stored only on this device',
     region: 'Region',
-    regionMissing: 'Set the region in RemNote plugin settings.',
-    privacy: 'Your key stays in local RemNote storage and is never synced.',
+    regionPlaceholder: 'eastasia',
+    privacy: 'Your Speech Key stays in local RemNote storage. Region and voice choices are saved with this plugin.',
     voices: 'Language voices',
+    catalogLoading: 'Loading the complete Azure voice catalog…',
+    catalogReady: 'Azure catalog loaded: {count} compatible voices.',
+    catalogFailed: 'Could not load the Azure catalog. Curated voices remain available.',
+    catalogRefresh: 'Refresh catalog',
     voice: 'Voice',
     automatic: 'Automatic — best available voice',
     preview: 'Preview',
@@ -68,7 +55,7 @@ const COPY = {
     title: '高级声音设置',
     subtitle: '为每种卡片语言选择并试听声音。',
     nativeNoticeTitle: '日常设置现已集成到 RemNote',
-    nativeNoticeBody: '前往 设置 → 插件 → Smart Flashcard TTS 调整自动朗读、Cloze 用词、语速、音量和声音来源。',
+    nativeNoticeBody: '前往 设置 → 插件 → RemNote Smart TTS 调整自动朗读、Cloze 用词、语速、音量和声音来源。',
     provider: '当前声音来源',
     browser: '浏览器声音',
     azure: 'Azure Neural Voice',
@@ -76,9 +63,13 @@ const COPY = {
     key: 'Speech Key',
     keyPlaceholder: '仅保存在这台设备上',
     region: '区域',
-    regionMissing: '请在 RemNote 插件设置中填写 Region。',
-    privacy: 'Key 只保存在本机 RemNote storage，不会同步。',
+    regionPlaceholder: '例如：eastasia',
+    privacy: 'Speech Key 仅保存在本机 RemNote storage；Region 与声音选择保存在本插件设置中。',
     voices: '语言声音',
+    catalogLoading: '正在加载 Azure 完整声音目录…',
+    catalogReady: 'Azure 目录已加载：{count} 个兼容声音。',
+    catalogFailed: '无法加载 Azure 目录，当前仍可使用精选声音。',
+    catalogRefresh: '刷新目录',
     voice: '声音',
     automatic: '自动选择最佳可用声音',
     preview: '试听',
@@ -95,6 +86,37 @@ const COPY = {
 
 const testController = new SpeechController();
 
+type CatalogStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+function voiceOptionLabel(voice: AzureVoice): string {
+  const name = voice.localName === voice.displayName
+    ? voice.displayName
+    : `${voice.localName} / ${voice.displayName}`;
+  return [name, voice.gender, voice.voiceType].filter(Boolean).join(' · ');
+}
+
+function voicesIncludingSelection(
+  voices: AzureVoice[],
+  selectedVoice: string,
+  language: SupportedLanguage,
+): AzureVoice[] {
+  if (!selectedVoice || voices.some((voice) => voice.shortName === selectedVoice)) return voices;
+  const selectedPreset = CURATED_AZURE_VOICES[language]
+    .find((voice) => voice.shortName === selectedVoice);
+  return [selectedPreset ?? {
+    shortName: selectedVoice,
+    displayName: selectedVoice,
+    localName: selectedVoice,
+    gender: '',
+    locale: LANGUAGE_META[language].locale,
+    localeName: LANGUAGE_META[language].locale,
+    voiceType: '',
+    status: '',
+    styles: [],
+    secondaryLocales: [],
+  }, ...voices];
+}
+
 function WaveMark() {
   return <span className="voice-setup__wave" aria-hidden="true"><i /><i /><i /><i /></span>;
 }
@@ -106,6 +128,9 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [saving, setSaving] = useState(false);
   const [testingLanguage, setTestingLanguage] = useState<SupportedLanguage | null>(null);
+  const [azureCatalog, setAzureCatalog] = useState<AzureVoiceCatalog>(CURATED_AZURE_VOICES);
+  const [catalogStatus, setCatalogStatus] = useState<CatalogStatus>('idle');
+  const [catalogRequest, setCatalogRequest] = useState(0);
 
   useEffect(() => {
     void Promise.all([readSettings(plugin), readAzureKey(plugin)]).then(([savedSettings, savedKey]) => {
@@ -123,6 +148,48 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
     };
   }, [plugin]);
 
+  useEffect(() => {
+    if (settings?.provider !== 'azure' || !azureKey.trim() || !settings.azureRegion.trim()) {
+      setAzureCatalog(CURATED_AZURE_VOICES);
+      setCatalogStatus('idle');
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    let disposed = false;
+    let requestTimeout: number | undefined;
+    const timer = window.setTimeout(() => {
+      setCatalogStatus('loading');
+      requestTimeout = window.setTimeout(() => controller.abort(), 10_000);
+      void fetchAzureVoiceCatalog({
+        key: azureKey,
+        region: settings.azureRegion,
+        signal: controller.signal,
+      }).then((catalog) => {
+        if (disposed) return;
+        const compatibleVoiceCount = Object.values(catalog)
+          .reduce((sum, languageVoices) => sum + languageVoices.length, 0);
+        if (compatibleVoiceCount === 0) throw new Error('Azure returned no compatible voices.');
+        setAzureCatalog(catalog);
+        setCatalogStatus('ready');
+      }).catch((error) => {
+        if (disposed) return;
+        console.warn('RemNote Smart TTS could not load the Azure voice catalog.', error);
+        setAzureCatalog(CURATED_AZURE_VOICES);
+        setCatalogStatus('error');
+      }).finally(() => {
+        if (requestTimeout !== undefined) window.clearTimeout(requestTimeout);
+      });
+    }, 500);
+
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+      if (requestTimeout !== undefined) window.clearTimeout(requestTimeout);
+      controller.abort();
+    };
+  }, [azureKey, catalogRequest, settings?.azureRegion, settings?.provider]);
+
   const browserVoices = useMemo(() => {
     const result: Record<SupportedLanguage, SpeechSynthesisVoice[]> = { zh: [], en: [], ja: [] };
     for (const voice of voices) {
@@ -136,6 +203,8 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
 
   if (!settings) return <main className="voice-setup voice-setup--loading"><WaveMark /></main>;
   const copy = COPY[displayLanguage];
+  const compatibleVoiceCount = Object.values(azureCatalog)
+    .reduce((sum, languageVoices) => sum + languageVoices.length, 0);
 
   const updateVoice = (field: 'browserVoices' | 'azureVoices', language: SupportedLanguage, value: string) => {
     setSettings((current) => current && ({
@@ -150,7 +219,7 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
       await Promise.all([writeSettings(plugin, settings), writeAzureKey(plugin, azureKey)]);
       await plugin.app.toast(copy.saved);
     } catch (error) {
-      console.error('Smart Flashcard TTS could not save advanced voice settings.', error);
+      console.error('RemNote Smart TTS could not save advanced voice settings.', error);
       await plugin.app.toast(copy.saveFailed);
     } finally {
       setSaving(false);
@@ -167,7 +236,7 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
       );
       if (result.fallbackReason) await plugin.app.toast(copy.fallback);
     } catch (error) {
-      console.error('Smart Flashcard TTS voice preview failed.', error);
+      console.error('RemNote Smart TTS voice preview failed.', error);
       await plugin.app.toast(copy.previewFailed);
     } finally {
       setTestingLanguage(null);
@@ -214,7 +283,16 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
             <div className="section-title section-title--inverse"><span>02</span><h2>{copy.credentials}</h2></div>
             <div className="credential-grid">
               <label><span>{copy.key}</span><input type="password" autoComplete="off" value={azureKey} onChange={(event) => setAzureKey(event.target.value)} placeholder={copy.keyPlaceholder} /></label>
-              <div className="read-only-field"><span>{copy.region}</span><strong>{settings.azureRegion || copy.regionMissing}</strong></div>
+              <label>
+                <span>{copy.region}</span>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  value={settings.azureRegion}
+                  onChange={(event) => setSettings({ ...settings, azureRegion: event.target.value })}
+                  placeholder={copy.regionPlaceholder}
+                />
+              </label>
             </div>
             <p className="privacy-note"><span aria-hidden="true">●</span>{copy.privacy}</p>
           </div>
@@ -222,7 +300,27 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
       </section>
 
       <section className="voice-setup__section">
-        <div className="section-title"><span>{settings.provider === 'azure' ? '03' : '02'}</span><h2>{copy.voices}</h2></div>
+        <div className="section-title section-title--voices">
+          <span>{settings.provider === 'azure' ? '03' : '02'}</span>
+          <h2>{copy.voices}</h2>
+          {settings.provider === 'azure' && (
+            <button
+              className="catalog-refresh-button"
+              type="button"
+              onClick={() => setCatalogRequest((request) => request + 1)}
+              disabled={catalogStatus === 'loading' || !azureKey.trim() || !settings.azureRegion.trim()}
+            >
+              {copy.catalogRefresh}
+            </button>
+          )}
+        </div>
+        {settings.provider === 'azure' && catalogStatus !== 'idle' && (
+          <p className={`voice-catalog-status voice-catalog-status--${catalogStatus}`} role="status">
+            {catalogStatus === 'loading' && copy.catalogLoading}
+            {catalogStatus === 'ready' && copy.catalogReady.replace('{count}', String(compatibleVoiceCount))}
+            {catalogStatus === 'error' && copy.catalogFailed}
+          </p>
+        )}
         <div className="voice-list">
           {(Object.keys(LANGUAGE_META) as SupportedLanguage[]).map((language) => {
             const meta = LANGUAGE_META[language];
@@ -233,7 +331,15 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
                   <span>{copy.voice}</span>
                   {settings.provider === 'azure' ? (
                     <select value={settings.azureVoices[language]} onChange={(event) => updateVoice('azureVoices', language, event.target.value)}>
-                      {AZURE_VOICE_OPTIONS[language].map((voice) => <option key={voice.value} value={voice.value}>{voice.label}</option>)}
+                      {voicesIncludingSelection(
+                        azureCatalog[language],
+                        settings.azureVoices[language],
+                        language,
+                      ).map((voice) => (
+                        <option key={voice.shortName} value={voice.shortName}>
+                          {voiceOptionLabel(voice)}
+                        </option>
+                      ))}
                     </select>
                   ) : (
                     <select value={settings.browserVoices[language]} onChange={(event) => updateVoice('browserVoices', language, event.target.value)}>

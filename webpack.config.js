@@ -90,13 +90,38 @@ const config = {
       banner: (file) => {
         // Dynamic imports can create unnamed chunks, so guard the optional name.
         const chunkName = file.chunk?.name ?? '';
-        return !chunkName.includes(SANDBOX_SUFFIX) ? 'const IMPORT_META=import.meta;' : '';
+        if (chunkName.includes(SANDBOX_SUFFIX)) return '';
+
+        // RemNote's localhost loader can evaluate DEV widgets as classic scripts.
+        // In that context `import.meta` is a syntax error, while currentScript still
+        // provides the bundle URL expected by the SDK's native widget renderer.
+        return isDevelopment
+          // Multiple DEV widgets can share one classic-script scope, so this
+          // compatibility alias must be safely redeclarable across bundles.
+          ? "var IMPORT_META={url:(document.currentScript&&document.currentScript.src)||''};"
+          : 'const IMPORT_META=import.meta;';
       },
       raw: true,
     }),
     new CopyPlugin({
       patterns: [
-        { from: 'public', to: '' },
+        {
+          from: 'public',
+          to: '',
+          transform(content, absoluteFrom) {
+            // RemNote will not install a localhost build when the store version with
+            // the same plugin ID is already present. Give development builds their
+            // own identity so both versions can be inspected without uninstalling.
+            if (isDevelopment && path.basename(absoluteFrom) === 'manifest.json') {
+              const manifest = JSON.parse(content.toString());
+              manifest.id = `${manifest.id}-dev`;
+              manifest.name = `${manifest.name} [DEV]`;
+              return JSON.stringify(manifest, null, 2);
+            }
+
+            return content;
+          },
+        },
         { from: 'README.md', to: '' },
       ],
     }),

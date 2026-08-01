@@ -8,13 +8,12 @@ export const AZURE_KEY_STORAGE_KEY = 'card-speech-azure-key-v1';
 export const DEFAULT_SETTINGS: SpeechSettings = {
   uiLanguage: 'en',
   enabled: true,
-  officialTtsDisabledConfirmed: false,
-  autoReadQuestion: false,
-  autoReadAnswer: false,
+  autoReadQuestion: true,
+  autoReadAnswer: true,
   provider: 'browser',
   fallbackToBrowser: true,
   defaultLanguage: 'zh',
-  rate: 1,
+  rate: 0.9,
   volume: 1,
   browserVoices: {
     zh: '',
@@ -50,18 +49,14 @@ export function normalizeSettings(saved?: Partial<SpeechSettings> | null): Speec
   const defaultLanguage = LANGUAGES.includes(saved?.defaultLanguage as SupportedLanguage)
     ? (saved?.defaultLanguage as SupportedLanguage)
     : DEFAULT_SETTINGS.defaultLanguage;
-  const officialTtsDisabledConfirmed = saved?.officialTtsDisabledConfirmed === true;
-
   return {
     ...DEFAULT_SETTINGS,
     ...saved,
     uiLanguage,
     provider,
     defaultLanguage,
-    officialTtsDisabledConfirmed,
-    // Autoplay stays locked until the user confirms RemNote's own autoplay TTS is off.
-    autoReadQuestion: officialTtsDisabledConfirmed && saved?.autoReadQuestion === true,
-    autoReadAnswer: officialTtsDisabledConfirmed && saved?.autoReadAnswer === true,
+    autoReadQuestion: saved?.autoReadQuestion ?? DEFAULT_SETTINGS.autoReadQuestion,
+    autoReadAnswer: saved?.autoReadAnswer ?? DEFAULT_SETTINGS.autoReadAnswer,
     rate: clamp(saved?.rate, 0.5, 2, DEFAULT_SETTINGS.rate),
     volume: clamp(saved?.volume, 0, 1, DEFAULT_SETTINGS.volume),
     browserVoices: {
@@ -87,7 +82,7 @@ export async function readSettings(plugin: RNPlugin): Promise<SpeechSettings> {
     ]);
     return normalizeSettings({ ...saved, ...nativeSettings });
   } catch (error) {
-    console.error('Smart Flashcard TTS could not read settings.', error);
+    console.error('RemNote Smart TTS could not read settings.', error);
     return DEFAULT_SETTINGS;
   }
 }
@@ -100,7 +95,7 @@ export async function readAzureKey(plugin: RNPlugin): Promise<string> {
   try {
     return (await plugin.storage.getLocal<string>(AZURE_KEY_STORAGE_KEY))?.trim() ?? '';
   } catch (error) {
-    console.error('Smart Flashcard TTS could not read the local Azure key.', error);
+    console.error('RemNote Smart TTS could not read the local Azure key.', error);
     return '';
   }
 }

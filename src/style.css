@@ -39,77 +39,90 @@ select:focus-visible {
 /* Compact flashcard control ------------------------------------------------ */
 
 .speech-control {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  gap: 6px;
+  width: max-content;
   height: 38px;
-  margin: 7px 0 2px 22px;
-  padding: 3px;
-  color: #5f6370;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(91, 92, 106, 0.17);
-  border-radius: 12px;
-  box-shadow: 0 3px 10px rgba(32, 34, 42, 0.08);
-  backdrop-filter: blur(10px);
+  margin: 0 auto;
 }
 
 .speech-control button {
   display: inline-grid;
   place-items: center;
-  width: 31px;
-  height: 30px;
   padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 9px;
   cursor: pointer;
-  transition: color 140ms ease, background 140ms ease, transform 140ms ease;
-}
-
-.speech-control button:hover:not(:disabled) {
-  color: var(--sf-accent);
-  background: var(--sf-accent-soft);
-  transform: translateY(-1px);
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
 
 .speech-control button:active:not(:disabled) { transform: translateY(0); }
 .speech-control button:disabled { cursor: default; opacity: 0.35; }
 
 .speech-control svg {
-  width: 17px;
-  height: 17px;
-  fill: currentColor;
+  width: 18px;
+  height: 18px;
+  fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 1.9;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.speech-control__settings svg { fill: none; }
-
 .speech-control__primary {
   position: relative;
+  width: 34px;
+  height: 34px;
   color: var(--sf-accent);
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(91, 92, 106, 0.16);
+  border-radius: 50%;
+  box-shadow: 0 2px 7px rgba(32, 34, 42, 0.06);
+  backdrop-filter: blur(8px);
 }
 
 .speech-control__primary svg { position: relative; z-index: 1; }
 
-.speech-control__divider {
-  width: 1px;
-  height: 18px;
-  margin: 0 2px;
-  background: var(--sf-line);
+.speech-control__primary:hover:not(:disabled) {
+  color: #5d45c7;
+  background: white;
+  border-color: rgba(103, 80, 216, 0.25);
+  box-shadow: 0 4px 12px rgba(58, 48, 104, 0.12);
+  transform: translateY(-1px);
 }
+
+.speech-control__settings {
+  width: 25px;
+  height: 25px;
+  color: #797d89;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 50%;
+}
+
+.speech-control__settings:hover:not(:disabled) {
+  color: var(--sf-accent);
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(103, 80, 216, 0.16);
+  box-shadow: 0 3px 10px rgba(32, 34, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.speech-control__settings svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
 
 .speech-control__pulse {
   position: absolute;
-  inset: 5px;
-  background: var(--sf-accent-soft);
-  border-radius: 7px;
+  inset: -3px;
+  border: 2px solid rgba(103, 80, 216, 0.36);
+  border-radius: 50%;
   opacity: 0;
 }
 
+.speech-control[data-status="preparing"] .speech-control__primary,
 .speech-control[data-status="speaking"] .speech-control__primary {
-  color: var(--sf-danger);
+  color: var(--sf-accent);
+  background: var(--sf-accent-soft);
+  border-color: rgba(103, 80, 216, 0.22);
+  box-shadow: 0 3px 10px rgba(80, 64, 160, 0.13);
 }
 
 .speech-control[data-status="speaking"] .speech-control__pulse {
@@ -117,13 +130,60 @@ select:focus-visible {
   animation: sf-pulse 1.45s ease-out infinite;
 }
 
+.speech-control__spinner circle {
+  opacity: 0.2;
+}
+
+.speech-control__spinner path {
+  animation: sf-spin 700ms linear infinite;
+  transform-origin: center;
+}
+
+.speech-control__wave {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 18px;
+  height: 18px;
+}
+
+.speech-control__wave i {
+  width: 2px;
+  height: 7px;
+  background: currentColor;
+  border-radius: 2px;
+  animation: sf-wave 720ms ease-in-out infinite alternate;
+}
+
+.speech-control__wave i:nth-child(2) {
+  height: 13px;
+  animation-delay: -240ms;
+}
+
+.speech-control__wave i:nth-child(3) {
+  height: 9px;
+  animation-delay: -480ms;
+}
+
 .speech-control[data-status="error"] {
-  border-color: rgba(192, 71, 71, 0.35);
+  filter: saturate(0.45);
 }
 
 @keyframes sf-pulse {
   0% { opacity: 0.9; transform: scale(0.76); }
   75%, 100% { opacity: 0; transform: scale(1.3); }
+}
+
+@keyframes sf-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes sf-wave {
+  from { transform: scaleY(0.55); opacity: 0.55; }
+  to { transform: scaleY(1); opacity: 1; }
 }
 
 /* Advanced voice setup ---------------------------------------------------- */
@@ -303,6 +363,32 @@ select:focus-visible {
   font-weight: 720;
 }
 
+.section-title--voices { align-items: center; }
+
+.catalog-refresh-button {
+  margin-left: auto;
+  padding: 5px 8px;
+  color: var(--sf-accent);
+  background: var(--sf-accent-soft);
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.catalog-refresh-button:disabled { cursor: default; opacity: 0.5; }
+
+.voice-catalog-status {
+  margin: -4px 0 10px 32px;
+  color: var(--sf-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.voice-catalog-status--ready { color: var(--sf-success); }
+.voice-catalog-status--error { color: #a45454; }
+
 .provider-summary {
   position: relative;
   gap: 12px;
@@ -371,7 +457,6 @@ select:focus-visible {
 .credential-grid > * { flex: 1 1 0; min-width: 0; }
 
 .credential-grid label > span,
-.read-only-field > span,
 .voice-row label > span {
   display: block;
   margin-bottom: 5px;
@@ -400,22 +485,6 @@ select:focus-visible {
 }
 
 .credential-grid input::placeholder { color: #9c9ca8; }
-
-.read-only-field strong {
-  display: flex;
-  align-items: center;
-  min-height: 35px;
-  padding: 0 10px;
-  overflow: hidden;
-  color: #e9e9ef;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 9px;
-  font-size: 10px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .privacy-note {
   margin: 9px 0 0;

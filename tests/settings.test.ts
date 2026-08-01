@@ -4,23 +4,18 @@ import type { RNPlugin } from '@remnote/plugin-sdk';
 import { NATIVE_SETTING_IDS, readNativeSettings } from '../src/core/nativeSettings';
 import { normalizeSettings } from '../src/core/settings';
 
-test('locks autoplay until RemNote official TTS is confirmed off', () => {
+test('allows autoplay without an unavailable RemNote TTS interlock', () => {
   const settings = normalizeSettings({
-    autoReadQuestion: true,
+    autoReadQuestion: false,
     autoReadAnswer: true,
   });
 
-  assert.equal(settings.officialTtsDisabledConfirmed, false);
   assert.equal(settings.autoReadQuestion, false);
-  assert.equal(settings.autoReadAnswer, false);
+  assert.equal(settings.autoReadAnswer, true);
 });
 
-test('allows autoplay after explicit conflict confirmation', () => {
-  const settings = normalizeSettings({
-    officialTtsDisabledConfirmed: true,
-    autoReadQuestion: true,
-    autoReadAnswer: true,
-  });
+test('enables question and answer autoplay by default', () => {
+  const settings = normalizeSettings({});
 
   assert.equal(settings.autoReadQuestion, true);
   assert.equal(settings.autoReadAnswer, true);
@@ -35,6 +30,7 @@ test('reads everyday controls from RemNote native plugin settings', async () => 
   const values = new Map<string, unknown>([
     [NATIVE_SETTING_IDS.uiLanguage, 'zh'],
     [NATIVE_SETTING_IDS.provider, 'azure'],
+    [NATIVE_SETTING_IDS.autoplayMode, 'both'],
     [NATIVE_SETTING_IDS.volumePercent, 65],
     [NATIVE_SETTING_IDS.clozeZh, '哪个'],
   ]);
@@ -45,6 +41,8 @@ test('reads everyday controls from RemNote native plugin settings', async () => 
   const settings = await readNativeSettings(plugin);
   assert.equal(settings.uiLanguage, 'zh');
   assert.equal(settings.provider, 'azure');
+  assert.equal(settings.autoReadQuestion, true);
+  assert.equal(settings.autoReadAnswer, true);
   assert.equal(settings.volume, 0.65);
   assert.equal(settings.clozeWords?.zh, '哪个');
 });

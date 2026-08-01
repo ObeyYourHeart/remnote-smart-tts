@@ -1,13 +1,13 @@
 {
   "private": true,
-  "name": "remnote-smart-flashcard-tts",
-  "version": "0.3.0",
+  "name": "remnote-smart-tts",
+  "version": "0.8.0",
   "license": "MIT",
   "scripts": {
     "check-types": "tsc",
     "test": "tsx --test tests/*.test.ts",
     "preview:build": "esbuild preview/settings-preview.tsx --bundle --outfile=preview-dist/app.js --loader:.css=css --define:process.env.NODE_ENV=\\\"production\\\" && shx cp preview/index.html preview-dist/index.html",
-    "dev": "cross-env NODE_ENV=development webpack-dev-server --color --progress --no-open",
+    "dev": "cross-env NODE_ENV=development webpack-dev-server --color --progress --no-open --port 8081",
     "build": "npx remnote-plugin validate && shx rm -rf dist && cross-env NODE_ENV=production webpack --color --progress && cd dist && bestzip ../PluginZip.zip ./*"
   },
   "dependencies": {

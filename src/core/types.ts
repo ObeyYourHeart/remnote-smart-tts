@@ -4,6 +4,8 @@ export type SpeechProvider = 'browser' | 'azure';
 
 export type InterfaceLanguage = 'en' | 'zh';
 
+export type AutoplayMode = 'off' | 'question' | 'answer' | 'both';
+
 export interface LanguageVoiceMap {
   zh: string;
   en: string;
@@ -13,7 +15,6 @@ export interface LanguageVoiceMap {
 export interface SpeechSettings {
   uiLanguage: InterfaceLanguage;
   enabled: boolean;
-  officialTtsDisabledConfirmed: boolean;
   autoReadQuestion: boolean;
   autoReadAnswer: boolean;
   provider: SpeechProvider;
@@ -30,9 +31,22 @@ export interface SpeechSettings {
 export interface SpeechContent {
   text: string;
   language: SupportedLanguage;
+  /** Optional semantic units that should be spoken with a clear boundary. */
+  segments?: string[];
 }
 
-export type SupportedCardKind = 'forward' | 'backward' | 'descriptor-backward' | 'cloze';
+export type SupportedCardKind =
+  | 'forward'
+  | 'backward'
+  | 'concept-forward'
+  | 'concept-backward'
+  | 'descriptor-forward'
+  | 'descriptor-backward'
+  | 'multi-line-forward'
+  | 'multi-line-backward'
+  | 'list-answer-forward'
+  | 'list-answer-backward'
+  | 'cloze';
 
 export interface CardSpeechPlan {
   cardId: string;
@@ -53,7 +67,11 @@ export interface RenderedCloze {
   placeholderLanguage: SupportedLanguage;
 }
 
-export type SpeechStatus = 'idle' | 'loading' | 'speaking' | 'error';
+export type SpeechStatus = 'idle' | 'loading' | 'preparing' | 'speaking' | 'error';
+
+export interface SpeechPlaybackCallbacks {
+  onPlaybackStart?: () => void;
+}
 
 export interface SpeechPlaybackResult {
   provider: SpeechProvider;
