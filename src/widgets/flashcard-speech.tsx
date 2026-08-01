@@ -114,6 +114,8 @@ function FlashcardSpeechWidget() {
     // Read it again shortly afterwards so answer autoplay receives the answer side.
     const handleReveal = () => window.setTimeout(() => void refresh(true), 120);
     const handleQueueLoadCard = () => window.setTimeout(() => void refresh(true), 30);
+    // Stop active audio after rating a card, but keep an already-idle Azure
+    // session warm for the next card in the same review queue.
     const handleQueueComplete = () => controller.cancel();
     const handleSettingsChange = () => void refresh(true);
 

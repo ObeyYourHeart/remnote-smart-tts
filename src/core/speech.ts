@@ -1,3 +1,4 @@
+import { AzureMp3StreamPlayer } from './azureStreamPlayer';
 import type {
   SpeechContent,
   SpeechPlaybackCallbacks,
@@ -7,6 +8,12 @@ import type {
 } from './types';
 
 type AzureSpeechSdk = typeof import('microsoft-cognitiveservices-speech-sdk');
+
+interface AzureSpeechSession {
+  key: string;
+  region: string;
+  synthesizer: import('microsoft-cognitiveservices-speech-sdk').SpeechSynthesizer;
+}
 
 let azureSpeechSdkPromise: Promise<AzureSpeechSdk> | null = null;
 
@@ -132,22 +139,25 @@ function chooseBrowserVoice(
  */
 export class SpeechController {
   private generation = 0;
-  private activeSynthesizer: import('microsoft-cognitiveservices-speech-sdk').SpeechSynthesizer | null = null;
-  private activePlayer: import('microsoft-cognitiveservices-speech-sdk').SpeakerAudioDestination | null = null;
+  private azureSession: AzureSpeechSession | null = null;
+  private azureSessionBusy = false;
+  private activeAzurePlayer: AzureMp3StreamPlayer | null = null;
 
   cancel(): void {
     this.generation += 1;
     window.speechSynthesis.cancel();
 
-    if (this.activeSynthesizer) {
-      this.activeSynthesizer.close();
-      this.activeSynthesizer = null;
-    }
-    if (this.activePlayer) {
-      this.activePlayer.pause();
-      this.activePlayer.close();
-      this.activePlayer = null;
-    }
+    // A completed Azure session stays alive so the next card can reuse its
+    // WebSocket. An in-flight session is disposed because starting a second
+    // synthesis while cancellation is settling can corrupt the SDK player.
+    if (this.azureSessionBusy) this.disposeAzureSession();
+  }
+
+  /** Fully releases the Azure connection when the queue is finished. */
+  dispose(): void {
+    this.generation += 1;
+    window.speechSynthesis.cancel();
+    this.disposeAzureSession();
   }
 
   async speak(
@@ -171,7 +181,7 @@ export class SpeechController {
         await this.speakWithAzure(content, settings, azureKey, currentGeneration, callbacks);
         return { provider: 'azure' };
       } catch (error) {
-        this.cleanupAzureAudio();
+        this.disposeAzureSession();
         const blockedByChrome = error instanceof Error && error.message.startsWith('Chrome blocked autoplay');
         // Browser speech is blocked by the same RemNote iframe policy. Keep the
         // precise Azure message instead of failing a second time with a vague
@@ -231,93 +241,33 @@ export class SpeechController {
   ): Promise<void> {
     // Reuse the module promise started while the card was being inspected.
     const SpeechSDK = await preloadAzureSpeechSdk();
-    const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(azureKey, settings.azureRegion.trim());
-    speechConfig.speechSynthesisVoiceName = settings.azureVoices[content.language];
-    // Compressed 24 kHz MP3 is small enough for short flashcards without
-    // sacrificing the clarity of Chinese, English, or Japanese speech.
-    speechConfig.speechSynthesisOutputFormat = SpeechSDK.SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3;
+    const region = settings.azureRegion.trim();
+    const session = this.getOrCreateAzureSession(SpeechSDK, azureKey, region);
+    const { synthesizer } = session;
 
     const semanticSegments = content.segments?.map((segment) => segment.trim()).filter(Boolean);
     const azurePayloads = semanticSegments?.length
       ? [{ segments: semanticSegments }]
       : splitSpeechText(content.text, 450).map((text) => ({ text }));
 
-    for (const payload of azurePayloads) {
-      if (generation !== this.generation) return;
-      // A single explicit SDK player avoids both double playback and a second
-      // independent audio element, which previously caused echo. We still
-      // observe the SDK's own element so blocked autoplay is never reported as
-      // successful playback.
-      const player = new SpeechSDK.SpeakerAudioDestination();
-      let markPlaybackStarted: () => void = () => undefined;
-      let markPlaybackBlocked: (error: Error) => void = () => undefined;
-      const playbackStarted = new Promise<void>((resolve, reject) => {
-        markPlaybackStarted = resolve;
-        markPlaybackBlocked = reject;
-      });
-      // The rejection is awaited after synthesis completes. Attach a handler
-      // immediately so a fast browser rejection is not treated as unhandled.
-      void playbackStarted.catch(() => undefined);
+    this.azureSessionBusy = true;
+    try {
+      for (const payload of azurePayloads) {
+        if (generation !== this.generation) return;
+        // Each request gets a fresh player while the synthesizer and its
+        // WebSocket remain reusable. Azure pushes compressed MP3 chunks into
+        // this callback as soon as they arrive.
+        const streamPlayer = new AzureMp3StreamPlayer(settings.volume, callbacks.onPlaybackStart);
+        this.activeAzurePlayer = streamPlayer;
+        const outputCallback = new class extends SpeechSDK.PushAudioOutputStreamCallback {
+          write(dataBuffer: ArrayBuffer): void {
+            streamPlayer.write(dataBuffer);
+          }
 
-      let markPlaybackFinished: () => void = () => undefined;
-      let markPlaybackFailed: (error: Error) => void = () => undefined;
-      let playbackSettled = false;
-      const playbackFinished = new Promise<void>((resolve, reject) => {
-        markPlaybackFinished = () => {
-          if (playbackSettled) return;
-          playbackSettled = true;
-          resolve();
-        };
-        markPlaybackFailed = (error) => {
-          if (playbackSettled) return;
-          playbackSettled = true;
-          reject(error);
-        };
-      });
-      // A playback error may arrive before synthesis has completed. Attach a
-      // handler immediately and await the same promise below.
-      void playbackFinished.catch(() => undefined);
-      player.onAudioEnd = () => markPlaybackFinished();
-      player.onAudioStart = () => {
-        const audio = player.internalAudio;
-        if (!audio) {
-          const error = new Error('Azure created no playable audio element.');
-          markPlaybackBlocked(error);
-          markPlaybackFailed(error);
-          return;
-        }
-
-        // Some NeuralHD voices do not consistently trigger the SDK player's
-        // onAudioEnd callback. The underlying HTML audio element still reports
-        // its lifecycle, so use it as an additional completion/error signal.
-        audio.addEventListener('ended', markPlaybackFinished, { once: true });
-        audio.addEventListener('error', () => {
-          markPlaybackFailed(new Error('Azure audio playback failed.'));
-        }, { once: true });
-
-        // The SDK creates its audio element only after the format is known, so
-        // volume must be applied here rather than immediately after construction.
-        audio.volume = settings.volume;
-        audio.muted = false;
-        void audio.play().then(
-          () => {
-            callbacks.onPlaybackStart?.();
-            markPlaybackStarted();
-          },
-          () => {
-            const error = new Error(
-              'Chrome blocked autoplay / Chrome 阻止了自动播放，请点击扬声器按钮启用声音。',
-            );
-            markPlaybackBlocked(error);
-            markPlaybackFailed(error);
-          },
-        );
-      };
-      const audioConfig = SpeechSDK.AudioConfig.fromSpeakerOutput(player);
-      const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, audioConfig);
-      this.activeSynthesizer = synthesizer;
-      this.activePlayer = player;
-
+          close(): void {
+            streamPlayer.closeStream();
+          }
+        }();
       const spokenBody = 'segments' in payload
         ? payload.segments
           .map((segment) => [
@@ -344,16 +294,13 @@ export class SpeechController {
           operation();
         };
         const synthesisTimeoutId = window.setTimeout(() => {
-          synthesizer.close();
-          if (this.activeSynthesizer === synthesizer) this.activeSynthesizer = null;
+          this.disposeAzureSession();
           finish(() => reject(new Error('Azure speech synthesis timed out.')));
         }, 15_000);
 
         synthesizer.speakSsmlAsync(
           ssml,
           (result) => {
-            synthesizer.close();
-            if (this.activeSynthesizer === synthesizer) this.activeSynthesizer = null;
             if (result.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
               finish(resolve);
             } else {
@@ -361,21 +308,20 @@ export class SpeechController {
             }
           },
           (error) => {
-            synthesizer.close();
-            if (this.activeSynthesizer === synthesizer) this.activeSynthesizer = null;
             finish(() => reject(new Error(String(error))));
           },
+          outputCallback,
         );
       });
 
       if (generation !== this.generation) return;
-      await playbackStarted;
+      await streamPlayer.playbackStarted;
       await new Promise<void>((resolve, reject) => {
         const timeoutId = window.setTimeout(
           () => reject(new Error('Azure audio playback timed out.')),
           90_000,
         );
-        void playbackFinished.then(
+        void streamPlayer.playbackFinished.then(
           () => {
             window.clearTimeout(timeoutId);
             resolve();
@@ -387,16 +333,42 @@ export class SpeechController {
         );
       });
       if (generation !== this.generation) return;
-      if (this.activePlayer === player) this.activePlayer = null;
+      streamPlayer.dispose();
+      if (this.activeAzurePlayer === streamPlayer) this.activeAzurePlayer = null;
+      }
+    } finally {
+      this.azureSessionBusy = false;
     }
   }
 
-  private cleanupAzureAudio(): void {
-    if (this.activePlayer) {
-      this.activePlayer.pause();
-      this.activePlayer.close();
-      this.activePlayer = null;
+  private getOrCreateAzureSession(
+    SpeechSDK: AzureSpeechSdk,
+    key: string,
+    region: string,
+  ): AzureSpeechSession {
+    if (this.azureSession?.key === key && this.azureSession.region === region) {
+      return this.azureSession;
     }
+
+    this.disposeAzureSession();
+    const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(key, region);
+    // Compressed 24 kHz MP3 is small enough for short flashcards without
+    // sacrificing the clarity of Chinese, English, or Japanese speech.
+    speechConfig.speechSynthesisOutputFormat = SpeechSDK.SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3;
+    // A null AudioConfig prevents the SDK from creating its own one-shot audio
+    // element. Each request supplies a fresh streaming callback instead.
+    const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, null);
+    this.azureSession = { key, region, synthesizer };
+    return this.azureSession;
+  }
+
+  private disposeAzureSession(): void {
+    this.activeAzurePlayer?.dispose();
+    this.activeAzurePlayer = null;
+    if (!this.azureSession) return;
+    this.azureSession.synthesizer.close();
+    this.azureSession = null;
+    this.azureSessionBusy = false;
   }
 
 }
