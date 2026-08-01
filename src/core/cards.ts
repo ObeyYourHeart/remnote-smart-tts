@@ -4,7 +4,11 @@ import { buildDescriptorSpeech, buildDescriptorSubject } from './descriptor';
 import { detectLanguage } from './language';
 import { piecesToPlainText, renderActiveCloze, richTextToPieces } from './richText';
 import { readStructuredCard, resolveStructuredCardRoot } from './structuredCardReader';
-import { buildStructuredAnswer, buildStructuredAnswerSegments } from './structuredCards';
+import {
+  buildOrderedItemQuestion,
+  buildStructuredAnswer,
+  buildStructuredAnswerSegments,
+} from './structuredCards';
 import type { CardSpeechPlan, SpeechSettings } from './types';
 
 type FlashcardContext = WidgetLocationContextDataMap[WidgetLocation.FlashcardUnder];
@@ -135,6 +139,9 @@ export async function buildCardSpeechPlan(
         ? trackedItemIndex
         : -1;
     const readsOneListItem = activeListItemIndex >= 0;
+    if (readsOneListItem && cardType !== 'backward') {
+      questionText = buildOrderedItemQuestion(frontText, activeListItemIndex, questionLanguage);
+    }
     const answerItems = readsOneListItem
       ? [structuredCard.items[activeListItemIndex]]
       : structuredCard.items;

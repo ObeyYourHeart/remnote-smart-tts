@@ -134,6 +134,7 @@ test('uses the queue-tracked index when RemNote keeps the parent card identity',
 
   assert.deepEqual(plan?.answer.segments, ['第二，把大象放进去。']);
   assert.equal(plan?.answer.text, '第二，把大象放进去。');
+  assert.equal(plan?.question.text, '把大象放入冰箱的第二步是什么？');
 });
 
 test('climbs from an ordered child when the parent powerup is omitted', async () => {
@@ -167,7 +168,7 @@ test('climbs from an ordered child when the parent powerup is omitted', async ()
   );
 
   assert.equal(plan?.kind, 'list-answer-forward');
-  assert.equal(plan?.question.text, '把大象放入冰箱的顺序');
+  assert.equal(plan?.question.text, '把大象放入冰箱的第二步是什么？');
   assert.deepEqual(plan?.answer.segments, ['第二，把大象放进去。']);
   assert.equal(plan?.answer.text, '第二，把大象放进去。');
 });

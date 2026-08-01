@@ -110,6 +110,14 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 - Capture the actual FlashcardUnder context across question and reveal without grading the card.
 - Explain why the 0.7.5 active-child assumption fails, implement the smallest verified correction, add regressions, build, and commit locally.
 
+### Phase 13: Localized ordered-step questions
+
+**Status:** complete
+
+- Verify the exact ordered card page and its visible current-item marker.
+- Generate a localized question for the tracked List-Answer item in Chinese, English, and Japanese.
+- Preserve whole-list prompts and backward cards, then test, build, verify DEV, and commit locally.
+
 ## Constraints
 
 - Do not control the user's Chrome unless explicitly requested.

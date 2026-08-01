@@ -75,3 +75,10 @@
 - Localhost-only diagnostics confirmed that RemNote sends the parent Rem/Card ID and no child index throughout the ordered question state.
 - Version 0.7.6 tracks reveal-to-next-question transitions for that stable parent identity, while direct child IDs remain preferred when available. Type checking and all 39 tests pass.
 - The production manifest and localhost DEV manifest both report 0.7.6; the production build regenerated `PluginZip.zip` successfully.
+
+## 0.7.7 localized ordered-step questions
+
+- Inspected the user's exact queue page and confirmed the visible first-item state.
+- Added Chinese, English, and Japanese per-step question templates while preserving whole-list and backward-card behavior.
+- Type checking and all 40 tests pass. DEV and production manifests report 0.7.7, and the production build regenerated `PluginZip.zip`.
+- The final exact-page reload timed out before a post-HMR snapshot; no repeat was attempted because the live page had already confirmed the necessary parent prompt and current-item marker.

@@ -1,6 +1,25 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildStructuredAnswer, buildStructuredAnswerSegments } from '../src/core/structuredCards';
+import {
+  buildOrderedItemQuestion,
+  buildStructuredAnswer,
+  buildStructuredAnswerSegments,
+} from '../src/core/structuredCards';
+
+test('builds localized questions for each tested ordered item', () => {
+  assert.equal(
+    buildOrderedItemQuestion('把大象放入冰箱的顺序', 0, 'zh'),
+    '把大象放入冰箱的第一步是什么？',
+  );
+  assert.equal(
+    buildOrderedItemQuestion('Steps to put an elephant in a refrigerator', 1, 'en'),
+    'What is the second step to put an elephant in a refrigerator?',
+  );
+  assert.equal(
+    buildOrderedItemQuestion('象を冷蔵庫に入れる手順', 2, 'ja'),
+    '象を冷蔵庫に入れるための第3ステップは何ですか？',
+  );
+});
 
 test('reads Chinese Multi-Line children as an unordered set', () => {
   assert.equal(

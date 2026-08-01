@@ -104,3 +104,7 @@
 - The controlled reveal interaction and the single reconnecting snapshot both timed out. Browser retries were stopped; the investigation moves to alternate SDK widget locations and event context rather than assuming the click result.
 - SDK 0.0.34 exposes the same `{ remId, cardId?, revealed }` context for Flashcard, FlashcardAnswer, FlashcardAnswerButtons, FlashcardExtraDetail, and FlashcardUnder. Moving the widget cannot reveal an active ordered child index.
 - `RevealAnswer` and queue lifecycle events carry no typed child/index payload. The reliable supported approach is to count the parent card's `revealed: true -> false` transitions locally, resetting at each new parent card, while preserving direct child-ID selection if RemNote ever supplies it.
+# 0.7.7 ordered-step questions
+
+- The exact queue page `kYFgwGCifpjBsZDK8` visibly shows the parent prompt `把大象放入冰箱的顺序` and current marker `1.` while the speech widget receives only the stable parent identity.
+- The tracked zero-based item index can therefore drive both the one-item answer and a localized per-step question without reading or changing the user's note content.

@@ -32,6 +32,57 @@ function finishSentence(text: string, language: SupportedLanguage): string {
   return `${cleanText}${language === 'en' ? '.' : '。'}`;
 }
 
+function formatEnglishStepOrdinal(index: number): string {
+  const namedOrdinal = ENGLISH_ORDINALS[index];
+  if (namedOrdinal) return namedOrdinal.toLowerCase();
+
+  const number = index + 1;
+  const lastTwoDigits = number % 100;
+  const suffix = lastTwoDigits >= 11 && lastTwoDigits <= 13
+    ? 'th'
+    : number % 10 === 1
+      ? 'st'
+      : number % 10 === 2
+        ? 'nd'
+        : number % 10 === 3
+          ? 'rd'
+          : 'th';
+  return `${number}${suffix}`;
+}
+
+/**
+ * Turns a parent List-Answer prompt into the question for one tested step.
+ * Common structure words are removed so Chinese does not say the awkward
+ * “顺序的第一步”, while English and Japanese receive native word order.
+ */
+export function buildOrderedItemQuestion(
+  subject: string,
+  itemIndex: number,
+  language: SupportedLanguage,
+): string {
+  const cleanSubject = trimEndingSeparator(subject);
+
+  if (language === 'en') {
+    const leadingInfinitive = cleanSubject.match(/^steps?\s+to\s+(.+)$/iu);
+    const ordinal = formatEnglishStepOrdinal(itemIndex);
+    if (leadingInfinitive?.[1]) return `What is the ${ordinal} step to ${leadingInfinitive[1]}?`;
+
+    const baseSubject = cleanSubject.replace(/\s+(?:steps?|order|procedure)$/iu, '').trim();
+    return `What is the ${ordinal} step of ${baseSubject || cleanSubject}?`;
+  }
+
+  if (language === 'ja') {
+    const baseSubject = cleanSubject.replace(/(?:の)?(?:手順|順序|ステップ)$/u, '').trim();
+    const normalizedSubject = baseSubject || cleanSubject;
+    const connector = /[うくぐすつぬぶむる]$/u.test(normalizedSubject) ? 'ための' : 'の';
+    return `${normalizedSubject}${connector}第${itemIndex + 1}ステップは何ですか？`;
+  }
+
+  const baseSubject = cleanSubject.replace(/(?:的)?(?:步骤|顺序|流程)$/u, '').trim();
+  const ordinal = CHINESE_ORDINALS[itemIndex] ?? `第${itemIndex + 1}`;
+  return `${baseSubject || cleanSubject}的${ordinal}步是什么？`;
+}
+
 /**
  * Creates one introduction plus one independently spoken segment per answer
  * item. Azure keeps these in one SSML request, so the pauses are clear without
