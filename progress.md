@@ -82,3 +82,10 @@
 - Added Chinese, English, and Japanese per-step question templates while preserving whole-list and backward-card behavior.
 - Type checking and all 40 tests pass. DEV and production manifests report 0.7.7, and the production build regenerated `PluginZip.zip`.
 - The final exact-page reload timed out before a post-HMR snapshot; no repeat was attempted because the live page had already confirmed the necessary parent prompt and current-item marker.
+# Semantic prompt customization research
+
+- Started auditing how the existing structural speech model can be explained and customized in RemNote settings.
+- Confirmed the working tree is clean and the repository is version 0.7.7 before any implementation decision.
+- Audited the hard-coded Concept/Descriptor builders, native settings, synced settings normalization, and advanced voice popup.
+- Drafted a staged template model that keeps structural recognition stable and makes semantic question words explicit and reversible.
+- Completed the product recommendation without changing runtime behavior: explain the structural model, add a descriptor-aware preset first, and defer optional per-Rem tags and AI inference.

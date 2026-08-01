@@ -108,3 +108,16 @@
 
 - The exact queue page `kYFgwGCifpjBsZDK8` visibly shows the parent prompt `把大象放入冰箱的顺序` and current marker `1.` while the speech widget receives only the stable parent identity.
 - The tracked zero-based item index can therefore drive both the one-item answer and a localized per-step question without reading or changing the user's note content.
+# Semantic prompt customization research
+
+- The current product already packages Concept, Descriptor, Multi-Line/Set, and ordered List-Answer as distinct semantic speech structures.
+- Current native settings expose everyday audio and Cloze controls, but Concept/Descriptor question wording is hard-coded in `concept.ts` and `descriptor.ts`.
+- The safest product direction is user-selected semantic templates with a conservative `What` default; fully automatic `who/when/where/how` inference should remain optional because the public card metadata does not encode those meanings.
+- The existing architecture already provides the right slots: Concept is the main subject, Descriptor is the relationship/aspect, and Multi-Line/List-Answer children are answer units. Customization should change wording, not card detection.
+- A global template alone cannot know that `乔布斯` is a person while `市盈率` is a definition. Reliable per-card intent therefore needs an explicit cue such as a Descriptor keyword mapping or a Rem tag; an LLM classifier would add privacy, latency, cost, and inconsistent results.
+- Recommended settings hierarchy: one simple native dropdown (`Natural default`, `Descriptor-aware`, `Custom`) and a richer `Speech templates` section in the existing popup with live examples. This avoids adding many flat native settings beside voice controls.
+- Recommended first release: keep `What` as the fallback; classify Descriptor cards deterministically from user-editable exact keywords for `Who`, `When`, `Where`, and `How`; allow localized template strings using safe tokens such as `{concept}`, `{descriptor}`, `{subject}`, `{step}`, and `{total}`.
+- Concept-only intent should remain `What` in the first release unless the user explicitly marks the Rem. A later optional `Smart TTS/Who|When|Where|How` tag system can provide exact per-Concept control without calling an AI service.
+- The settings UI should explain the mental model with four preview cards: `Concept → definition`, `Concept + Descriptor → contextual question`, `Multi-Line → grouped answer`, and `List-Answer → one tested step`. This communicates the product idea better than exposing raw templates first.
+- High-value wording improvement: structured Descriptor sets can use plural prompts such as `市销率的缺陷有哪些？` / `What are the disadvantages of ...?`, while ordered lists continue to ask for the current step.
+- Every custom template needs token validation, a preview, reset-to-default, and a fallback to the built-in wording if required tokens are missing. Existing 0.7.7 users should keep identical defaults after migration.

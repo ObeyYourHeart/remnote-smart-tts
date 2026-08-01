@@ -118,6 +118,14 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 - Generate a localized question for the tracked List-Answer item in Chinese, English, and Japanese.
 - Preserve whole-list prompts and backward cards, then test, build, verify DEV, and commit locally.
 
+### Phase 14: Custom semantic prompt templates
+
+**Status:** complete
+
+- Audit current Concept, Descriptor, Multi-Line/List-Answer prompt generation and native settings limits.
+- Design a simple user-facing template model that exposes structure without requiring fragile intelligent classification.
+- Compare configurable `what/who/when/where/how` approaches, recommend a staged implementation, and document safe fallbacks.
+
 ## Constraints
 
 - Do not control the user's Chrome unless explicitly requested.
@@ -153,3 +161,4 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 | Reconnected lightweight List-Answer snapshot also timed out | 2 | Stop Chrome retries and complete verification through exact structure regressions, DEV manifest, and production build. |
 | The first controlled Show Answer click timed out | 1 | Do not repeat the click; reconnect once and inspect the resulting page state and DEV diagnostic logs read-only. |
 | Reconnected post-reveal page snapshot also timed out | 2 | Stop Chrome retries and inspect SDK widget/event surfaces plus runtime Card metadata instead. |
+| SDK settings symbol search returned no declaration matches | 1 | Use the registration methods already proven by the project and design around dropdown, string, boolean, and the existing custom popup. |
