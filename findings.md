@@ -94,3 +94,13 @@
 - RemNote tests each ordered child Rem separately. Resolving that child to its structured parent is necessary for the shared question, but discarding the child identity caused version 0.7.4 to synthesize the entire parent answer on the first reveal.
 - Version 0.7.5 preserves the ordered child Rem ID, finds its index among the parent's direct card items, and emits only one answer segment using the true parent-list ordinal.
 - A parent-level ordered card still emits the full ordered answer. This keeps full-set and incremental review behavior distinct.
+
+## Live 0.7.5 incremental runtime
+
+- On `kYFgwGCifpjBsZDK8`, Chrome shows `把大象放入冰箱的顺序`, the downward ordered-card arrow, `1.` and `3`, plus an enabled DEV speech button.
+- Therefore version 0.7.5 is loaded and recognizes the structure; the remaining failure is selection of the active ordered child, not widget mounting or card detection.
+- The next step is a localhost-only structured diagnostic containing SDK IDs and indices, without note text or secrets, followed by one controlled reveal.
+- Live DEV diagnostics prove that both `contextRemId` and `Card.remId` remain the parent Rem on the question side. The three child Rem IDs are available, but `activeListItemIndex` is `-1`; version 0.7.5 therefore cannot select a child from IDs alone.
+- The controlled reveal interaction and the single reconnecting snapshot both timed out. Browser retries were stopped; the investigation moves to alternate SDK widget locations and event context rather than assuming the click result.
+- SDK 0.0.34 exposes the same `{ remId, cardId?, revealed }` context for Flashcard, FlashcardAnswer, FlashcardAnswerButtons, FlashcardExtraDetail, and FlashcardUnder. Moving the widget cannot reveal an active ordered child index.
+- `RevealAnswer` and queue lifecycle events carry no typed child/index payload. The reliable supported approach is to count the parent card's `revealed: true -> false` transitions locally, resetting at each new parent card, while preserving direct child-ID selection if RemNote ever supplies it.

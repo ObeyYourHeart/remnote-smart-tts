@@ -109,6 +109,33 @@ test('reads an unmarked ordinary List-Answer card from direct ordered items', as
   assert.equal(plan?.answer.segments?.length, 4);
 });
 
+test('uses the queue-tracked index when RemNote keeps the parent card identity', async () => {
+  const rem = {
+    _id: 'tracked-elephant-order',
+    type: 0,
+    text: ['把大象放入冰箱的顺序'],
+    backText: [],
+    hasPowerup: async () => false,
+    isCardItem: async () => false,
+    getChildrenRem: async () => [
+      makeChild('打开冰箱门', true, 'tracked-child-1'),
+      makeChild('把大象放进去', true, 'tracked-child-2'),
+      makeChild('关上冰箱门', true, 'tracked-child-3'),
+    ],
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(rem),
+    { remId: 'tracked-elephant-order', cardId: 'tracked-parent-card', revealed: true },
+    DEFAULT_SETTINGS,
+    { structuredItemIndex: 1 },
+  );
+
+  assert.deepEqual(plan?.answer.segments, ['第二，把大象放进去。']);
+  assert.equal(plan?.answer.text, '第二，把大象放进去。');
+});
+
 test('climbs from an ordered child when the parent powerup is omitted', async () => {
   const parentRem = {
     _id: 'unmarked-list-parent',

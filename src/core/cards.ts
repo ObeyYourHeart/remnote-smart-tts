@@ -9,6 +9,11 @@ import type { CardSpeechPlan, SpeechSettings } from './types';
 
 type FlashcardContext = WidgetLocationContextDataMap[WidgetLocation.FlashcardUnder];
 
+interface CardSpeechPlanOptions {
+  /** Zero-based ordered child index maintained by the queue widget. */
+  structuredItemIndex?: number;
+}
+
 async function readPlainText(plugin: RNPlugin, richText: Parameters<typeof richTextToPieces>[1]): Promise<string> {
   return piecesToPlainText(await richTextToPieces(plugin, richText));
 }
@@ -36,6 +41,7 @@ export async function buildCardSpeechPlan(
   plugin: RNPlugin,
   context: FlashcardContext,
   settings: SpeechSettings,
+  options: CardSpeechPlanOptions = {},
 ): Promise<CardSpeechPlan | null> {
   const [card, contextRem] = await Promise.all([
     context.cardId ? plugin.card.findOne(context.cardId) : Promise.resolve(undefined),
@@ -116,9 +122,18 @@ export async function buildCardSpeechPlan(
       structuredCard.items.join(' '),
       questionLanguage,
     );
-    const activeListItemIndex = structuredCard.kind === 'list-answer' && structuredRoot
+    const childRemIndex = structuredCard.kind === 'list-answer' && structuredRoot
       ? structuredCard.itemRemIds.indexOf(initialRem._id)
       : -1;
+    const trackedItemIndex = options.structuredItemIndex;
+    const activeListItemIndex = childRemIndex >= 0
+      ? childRemIndex
+      : structuredCard.kind === 'list-answer' &&
+        trackedItemIndex !== undefined &&
+        trackedItemIndex >= 0 &&
+        trackedItemIndex < structuredCard.items.length
+        ? trackedItemIndex
+        : -1;
     const readsOneListItem = activeListItemIndex >= 0;
     const answerItems = readsOneListItem
       ? [structuredCard.items[activeListItemIndex]]

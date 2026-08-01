@@ -102,6 +102,14 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 - Keep full-list speech for cards that genuinely reveal the whole ordered set.
 - Add regressions, bump the patch version, run verification, build, and commit locally without pushing GitHub.
 
+### Phase 12: Runtime incremental List evidence
+
+**Status:** complete
+
+- Inspect `kYFgwGCifpjBsZDK8` in the user's current Chrome session.
+- Capture the actual FlashcardUnder context across question and reveal without grading the card.
+- Explain why the 0.7.5 active-child assumption fails, implement the smallest verified correction, add regressions, build, and commit locally.
+
 ## Constraints
 
 - Do not control the user's Chrome unless explicitly requested.
@@ -135,3 +143,5 @@ Add reliable, structure-aware speech for RemNote Multi-Line and List-Answer card
 | DEV port inspection found no listener and then passed a null PID to `Get-Process` | 1 | Start the local DEV server before live HMR verification and avoid repeating the null-PID lookup. |
 | Combined RemNote reload and full DOM snapshot timed out | 1 | Do not repeat the combined operation; reconnect once and use a lightweight read-only snapshot. |
 | Reconnected lightweight List-Answer snapshot also timed out | 2 | Stop Chrome retries and complete verification through exact structure regressions, DEV manifest, and production build. |
+| The first controlled Show Answer click timed out | 1 | Do not repeat the click; reconnect once and inspect the resulting page state and DEV diagnostic logs read-only. |
+| Reconnected post-reveal page snapshot also timed out | 2 | Stop Chrome retries and inspect SDK widget/event surfaces plus runtime Card metadata instead. |

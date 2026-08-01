@@ -72,7 +72,7 @@ Choose **Autoplay mode** in **Settings → Plugins → Smart Flashcard TTS**. If
 
 ### Current scope
 
-Version 0.7 adds native Multi-Line/Set and ordered List-Answer speech. Version 0.7.5 recognizes unmarked nested Descriptor Multi-Line cards and ordinary ordered List-Answer cards. When RemNote tests one ordered child Rem, the plugin reads only that child as one sentence with its true ordinal; cards that reveal a complete set still read all items separately. Azure keeps complete sets in one SSML request with short controlled pauses, avoiding a new network delay per item. Concept + Descriptor prompts remain self-contained in Chinese, English, and Japanese. RemNote's public Plugin SDK does not expose Multiple-Choice correctness, so the plugin does not guess these answers. Randomized Multiple-Choice correctness, full table rendering, image occlusion descriptions, LaTeX Clozes, and mobile autoplay require future SDK support or an explicit user-authored marker.
+Version 0.7 adds native Multi-Line/Set and ordered List-Answer speech. Version 0.7.6 recognizes unmarked nested Descriptor Multi-Line cards and ordinary ordered List-Answer cards. RemNote keeps the parent Card ID while testing ordered children, so the plugin tracks each reveal-to-next-question transition and reads only the current item as one sentence with its true ordinal. Cards that reveal a complete set still read all items separately. Azure keeps complete sets in one SSML request with short controlled pauses, avoiding a new network delay per item. Concept + Descriptor prompts remain self-contained in Chinese, English, and Japanese. RemNote's public Plugin SDK does not expose Multiple-Choice correctness, so the plugin does not guess these answers. Randomized Multiple-Choice correctness, full table rendering, image occlusion descriptions, LaTeX Clozes, and mobile autoplay require future SDK support or an explicit user-authored marker.
 
 ### Development
 
@@ -155,7 +155,7 @@ RemNote 自带 Queue Text to Speech，表格列也可以启用 TTS。Plugin SDK 
 
 ### 当前范围
 
-0.7 版加入原生 Multi-Line/Set 和有序 List-Answer 朗读；0.7.5 可识别没有父级标记的嵌套 Descriptor Multi-Line 卡和普通顺序卡。当 RemNote 单独测试某个有序子 Rem 时，插件只朗读当前这一项，并保留它在父列表中的真实序号；真正一次揭晓整组答案的卡仍会逐项朗读全部内容。Azure 对完整答案组仍只使用一次 SSML 请求，因此不会产生逐项联网等待；Concept + Descriptor 继续使用中英日完整语义模板。RemNote 公开 Plugin SDK 目前不提供 Multiple-Choice 正确选项，因此插件不会猜测答案。随机多选正确项、完整表格渲染、图片遮挡描述、LaTeX Cloze 和移动端自动播放仍需未来 SDK 支持或用户显式标记。
+0.7 版加入原生 Multi-Line/Set 和有序 List-Answer 朗读；0.7.6 可识别没有父级标记的嵌套 Descriptor Multi-Line 卡和普通顺序卡。RemNote 在逐项测试时始终保留父卡 ID，因此插件会跟踪每次“答案揭晓后返回下一问题”的状态变化，只朗读当前这一项并保留真实序号；真正一次揭晓整组答案的卡仍会逐项朗读全部内容。Azure 对完整答案组仍只使用一次 SSML 请求，因此不会产生逐项联网等待；Concept + Descriptor 继续使用中英日完整语义模板。RemNote 公开 Plugin SDK 目前不提供 Multiple-Choice 正确选项，因此插件不会猜测答案。随机多选正确项、完整表格渲染、图片遮挡描述、LaTeX Cloze 和移动端自动播放仍需未来 SDK 支持或用户显式标记。
 
 ### 本地开发
 

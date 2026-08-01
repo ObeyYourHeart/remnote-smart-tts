@@ -68,3 +68,10 @@
 - The second child fixture now produces exactly one answer segment: `第二，把大象放进去。`; parent-level ordered cards retain full-list speech.
 - Type checking and all 36 tests pass.
 - RemNote manifest validation and the production build pass; both DEV and `dist` report version 0.7.5, and `PluginZip.zip` was regenerated.
+
+## 0.7.6 runtime List-Answer evidence
+
+- Opened the user's exact new queue URL. The DEV speech button is enabled on item 1 of 3, confirming that 0.7.5 loads but still chooses the full parent answer at runtime.
+- Localhost-only diagnostics confirmed that RemNote sends the parent Rem/Card ID and no child index throughout the ordered question state.
+- Version 0.7.6 tracks reveal-to-next-question transitions for that stable parent identity, while direct child IDs remain preferred when available. Type checking and all 39 tests pass.
+- The production manifest and localhost DEV manifest both report 0.7.6; the production build regenerated `PluginZip.zip` successfully.

@@ -8,6 +8,10 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SpeechControl } from '../components/speech-control';
 import { buildCardSpeechPlan } from '../core/cards';
+import {
+  INITIAL_ORDERED_QUEUE_STATE,
+  updateOrderedQueueState,
+} from '../core/orderedQueue';
 import { readAzureKey, readSettings } from '../core/settings';
 import { preloadAzureSpeechSdk, SpeechController } from '../core/speech';
 import type { CardSpeechPlan, SpeechSettings, SpeechStatus } from '../core/types';
@@ -27,11 +31,25 @@ function FlashcardSpeechWidget() {
   const contextSignatureRef = useRef('');
   const autoSpokenSignatureRef = useRef('');
   const autoSpeakTimerRef = useRef<number | null>(null);
+  const orderedQueueStateRef = useRef(INITIAL_ORDERED_QUEUE_STATE);
 
   const refresh = useCallback(async (forceSettings = false) => {
     try {
       const nextContext = await plugin.widget.getWidgetContext<WidgetLocation.FlashcardUnder>();
-      const signature = `${nextContext.cardId ?? 'none'}:${nextContext.remId}:${nextContext.revealed}`;
+      const queueCardKey = `${nextContext.cardId ?? 'none'}:${nextContext.remId}`;
+      // Ordered List-Answer cards keep the parent Rem/Card IDs for every
+      // child. The supported SDK exposes no child index, so advance only on
+      // the stable answer-to-next-question transition.
+      orderedQueueStateRef.current = updateOrderedQueueState(
+        orderedQueueStateRef.current,
+        queueCardKey,
+        nextContext.revealed,
+      );
+      const signature = [
+        queueCardKey,
+        nextContext.revealed,
+        orderedQueueStateRef.current.itemIndex,
+      ].join(':');
       if (!forceSettings && signature === contextSignatureRef.current) return;
 
       const [nextSettings, nextAzureKey] = await Promise.all([readSettings(plugin), readAzureKey(plugin)]);
@@ -41,7 +59,9 @@ function FlashcardSpeechWidget() {
           console.error('Smart Flashcard TTS could not preload Azure Speech.', error);
         });
       }
-      const nextPlan = await buildCardSpeechPlan(plugin, nextContext, nextSettings);
+      const nextPlan = await buildCardSpeechPlan(plugin, nextContext, nextSettings, {
+        structuredItemIndex: orderedQueueStateRef.current.itemIndex,
+      });
 
       contextSignatureRef.current = signature;
       setContext(nextContext);
@@ -93,10 +113,12 @@ function FlashcardSpeechWidget() {
     // RemNote emits RevealAnswer just before the revealed card context settles.
     // Read it again shortly afterwards so answer autoplay receives the answer side.
     const handleReveal = () => window.setTimeout(() => void refresh(true), 120);
+    const handleQueueLoadCard = () => window.setTimeout(() => void refresh(true), 30);
     const handleQueueComplete = () => controller.cancel();
     const handleSettingsChange = () => void refresh(true);
 
     plugin.event.addListener(AppEvents.RevealAnswer, listenerKey, handleReveal);
+    plugin.event.addListener(AppEvents.QueueLoadCard, listenerKey, handleQueueLoadCard);
     plugin.event.addListener(AppEvents.QueueCompleteCard, listenerKey, handleQueueComplete);
     plugin.event.addListener(AppEvents.StorageSyncedChange, listenerKey, handleSettingsChange);
     plugin.event.addListener(AppEvents.StorageLocalChange, listenerKey, handleSettingsChange);
@@ -109,6 +131,7 @@ function FlashcardSpeechWidget() {
       window.clearInterval(pollId);
       controller.cancel();
       plugin.event.removeListener(AppEvents.RevealAnswer, listenerKey, handleReveal);
+      plugin.event.removeListener(AppEvents.QueueLoadCard, listenerKey, handleQueueLoadCard);
       plugin.event.removeListener(AppEvents.QueueCompleteCard, listenerKey, handleQueueComplete);
       plugin.event.removeListener(AppEvents.StorageSyncedChange, listenerKey, handleSettingsChange);
       plugin.event.removeListener(AppEvents.StorageLocalChange, listenerKey, handleSettingsChange);
@@ -117,7 +140,7 @@ function FlashcardSpeechWidget() {
 
   useEffect(() => {
     if (!plan || !context || !settings?.enabled) return;
-    const signature = `${plan.cardId}:${context.revealed}`;
+    const signature = `${plan.cardId}:${context.revealed}:${orderedQueueStateRef.current.itemIndex}`;
     if (autoSpokenSignatureRef.current === signature) return;
 
     const shouldAutoRead = context.revealed ? settings.autoReadAnswer : settings.autoReadQuestion;
