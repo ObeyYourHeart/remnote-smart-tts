@@ -3,6 +3,7 @@ import { NATIVE_SETTING_IDS, registerNativeSettings } from '../core/nativeSettin
 import { readAzureKey, readSettings } from '../core/settings';
 import { preloadAzureSpeechSdk, SpeechController } from '../core/speech';
 import {
+  createSpeechServiceReady,
   createSpeechState,
   isPersistentSpeechMessage,
   type PersistentSpeechMessage,
@@ -38,9 +39,16 @@ let appearancePollId: number | undefined;
 let lastReplaceControls: boolean | undefined;
 const speechController = new SpeechController();
 const SPEECH_MESSAGE_LISTENER_KEY = 'remnote-smart-tts-persistent-speech';
+const SPEECH_SERVICE_ID = `service-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const MAX_REQUEST_AGE_MS = 350;
 let activeSpeechRequestId: string | undefined;
 
 async function handleSpeechMessage(plugin: ReactRNPlugin, message: PersistentSpeechMessage): Promise<void> {
+  if (message.type === 'speech-service-probe') {
+    await plugin.messaging.broadcast(createSpeechServiceReady(SPEECH_SERVICE_ID, message.probeId));
+    return;
+  }
+  if (message.type === 'speech-service-ready') return;
   if (message.type === 'speech-stop') {
     if (!message.requestId || message.requestId === activeSpeechRequestId) {
       speechController.cancel();
@@ -52,7 +60,7 @@ async function handleSpeechMessage(plugin: ReactRNPlugin, message: PersistentSpe
 
   // A request that waited too long for the persistent listener is ignored so
   // the card widget can safely use its local compatibility path without echo.
-  if (Date.now() - message.sentAt > 200) return;
+  if (Date.now() - message.sentAt > MAX_REQUEST_AGE_MS) return;
   activeSpeechRequestId = message.requestId;
 
   try {
@@ -119,6 +127,9 @@ async function onActivate(plugin: ReactRNPlugin) {
       console.error('RemNote Smart TTS persistent speech service failed.', error);
     });
   });
+  // Existing card widgets can learn that the long-lived service is ready
+  // without waiting for their next request to time out.
+  await plugin.messaging.broadcast(createSpeechServiceReady(SPEECH_SERVICE_ID));
 
   // This compact popup is only for local credentials, dynamic voices, and previews.
   await plugin.app.registerWidget('settings', WidgetLocation.Popup, {

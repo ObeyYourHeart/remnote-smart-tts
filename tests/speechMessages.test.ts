@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  createSpeechServiceProbe,
+  createSpeechServiceReady,
   createSpeechRequest,
   createSpeechState,
   createSpeechStop,
@@ -13,6 +15,21 @@ test('creates scoped persistent speech requests', () => {
   assert.equal(request.type, 'speech-request');
   assert.equal(request.requestId, 'request-1');
   assert.equal(isPersistentSpeechMessage(request), true);
+});
+
+test('creates a reusable persistent-service handshake', () => {
+  assert.deepEqual(createSpeechServiceProbe('probe-1'), {
+    scope: 'remnote-smart-tts',
+    type: 'speech-service-probe',
+    probeId: 'probe-1',
+  });
+  assert.deepEqual(createSpeechServiceReady('service-1', 'probe-1'), {
+    scope: 'remnote-smart-tts',
+    type: 'speech-service-ready',
+    serviceId: 'service-1',
+    probeId: 'probe-1',
+  });
+  assert.equal(isPersistentSpeechMessage(createSpeechServiceReady('service-1')), true);
 });
 
 test('distinguishes stop and playback state messages', () => {

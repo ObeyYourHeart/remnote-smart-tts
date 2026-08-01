@@ -1,4 +1,5 @@
 import { AzureMp3StreamPlayer } from './azureStreamPlayer';
+import { formatAzureSpeechError } from './speechErrors';
 import type {
   SpeechContent,
   SpeechPlaybackCallbacks,
@@ -80,6 +81,71 @@ export function splitSpeechText(text: string, maximumLength = 220): string[] {
 
   flushCurrentChunk();
   return chunks;
+}
+
+/** Gives Chrome enough time for long utterances without allowing an endless spinner. */
+export function getBrowserSpeechTimeoutMs(text: string, rate: number): number {
+  const safeRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
+  return Math.max(12_000, Math.min(90_000, Math.ceil((text.length * 300) / safeRate)));
+}
+
+/**
+ * Batches long semantic cards while keeping segment order and language labels.
+ * Ordinary cards remain one payload, so this adds no network round-trip to normal reviews.
+ */
+export function splitSpeechContentForAzure(
+  content: SpeechContent,
+  maximumTextLength = 1_500,
+  maximumSegments = 16,
+): SpeechContent[] {
+  const semanticSegments = normalizeSpeechSegments(content);
+  if (semanticSegments.length === 0) {
+    return splitSpeechText(content.text, 450).map((text) => ({
+      text,
+      language: content.language,
+    }));
+  }
+
+  const expandedSegments = semanticSegments.flatMap((segment) =>
+    splitSpeechText(segment.text, maximumTextLength).map((text) => ({
+      text,
+      language: segment.language,
+    })),
+  );
+  const batches: SpeechSegment[][] = [];
+  let currentBatch: SpeechSegment[] = [];
+  let currentLength = 0;
+
+  const flushBatch = () => {
+    if (currentBatch.length === 0) return;
+    batches.push(currentBatch);
+    currentBatch = [];
+    currentLength = 0;
+  };
+
+  for (const segment of expandedSegments) {
+    const separatorLength = currentBatch.length > 0 ? 2 : 0;
+    const wouldExceedLength = currentLength + separatorLength + segment.text.length > maximumTextLength;
+    const wouldExceedCount = currentBatch.length >= maximumSegments;
+    if (currentBatch.length > 0 && (wouldExceedLength || wouldExceedCount)) flushBatch();
+    currentBatch.push(segment);
+    currentLength += (currentBatch.length > 1 ? 2 : 0) + segment.text.length;
+  }
+  flushBatch();
+
+  if (
+    batches.length === 1 &&
+    batches[0].length === semanticSegments.length &&
+    batches[0].every((segment, index) => segment.text === semanticSegments[index].text)
+  ) {
+    return [{ ...content, segments: semanticSegments }];
+  }
+
+  return batches.map((segments) => ({
+    text: segments.map((segment) => segment.text).join('. '),
+    language: segments[0]?.language ?? content.language,
+    segments,
+  }));
 }
 
 function escapeXml(text: string): string {
@@ -225,8 +291,9 @@ export class SpeechController {
         // precise Azure message instead of failing a second time with a vague
         // browser `not-allowed` error.
         if (blockedByChrome) throw error;
-        if (!settings.fallbackToBrowser || currentGeneration !== this.generation) throw error;
-        const reason = error instanceof Error ? error.message : 'Azure Speech failed.';
+        if (currentGeneration !== this.generation) throw error;
+        const reason = formatAzureSpeechError(error, settings.uiLanguage);
+        if (!settings.fallbackToBrowser) throw new Error(reason);
         await this.speakWithBrowser(content, settings, currentGeneration, callbacks);
         return { provider: 'browser', fallbackReason: reason };
       }
@@ -259,6 +326,7 @@ export class SpeechController {
         settings.browserVoices[chunk.language],
       );
       await new Promise<void>((resolve, reject) => {
+        let settled = false;
         const utterance = new SpeechSynthesisUtterance(chunk.text);
         utterance.lang = LOCALES[chunk.language];
         utterance.voice = voice ?? null;
@@ -266,10 +334,22 @@ export class SpeechController {
         utterance.volume = settings.volume;
         utterance.pitch = 1;
         utterance.onstart = () => callbacks.onPlaybackStart?.();
-        utterance.onend = () => resolve();
+        const finish = (operation: () => void) => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeoutId);
+          operation();
+        };
+        const timeoutId = window.setTimeout(() => {
+          finish(() => {
+            window.speechSynthesis.cancel();
+            reject(new Error('Browser speech playback timed out.'));
+          });
+        }, getBrowserSpeechTimeoutMs(chunk.text, settings.rate));
+        utterance.onend = () => finish(resolve);
         utterance.onerror = (event) => {
-          if (event.error === 'canceled' || event.error === 'interrupted') resolve();
-          else reject(new Error(`Browser speech failed: ${event.error}`));
+          if (event.error === 'canceled' || event.error === 'interrupted') finish(resolve);
+          else finish(() => reject(new Error(`Browser speech failed: ${event.error}`)));
         };
         window.speechSynthesis.speak(utterance);
       });
@@ -289,13 +369,7 @@ export class SpeechController {
     const session = this.getOrCreateAzureSession(SpeechSDK, azureKey, region);
     const { synthesizer } = session;
 
-    const semanticSegments = normalizeSpeechSegments(content);
-    const azurePayloads: SpeechContent[] = semanticSegments.length > 0
-      ? [{ ...content, segments: semanticSegments }]
-      : splitSpeechText(content.text, 450).map((text) => ({
-        text,
-        language: content.language,
-      }));
+    const azurePayloads = splitSpeechContentForAzure(content);
 
     this.azureSessionBusy = true;
     try {

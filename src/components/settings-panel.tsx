@@ -257,7 +257,9 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
         ),
         () => testController.cancel(),
       );
-      if (result.fallbackReason) await plugin.app.toast(copy.fallback);
+      if (result.fallbackReason) {
+        await plugin.app.toast(`${copy.fallback} ${result.fallbackReason}`);
+      }
     } catch (error) {
       if (requestId !== previewRequestRef.current) return;
       console.error('RemNote Smart TTS voice preview failed.', error);

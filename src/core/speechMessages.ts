@@ -16,6 +16,19 @@ export interface PersistentSpeechStop {
   requestId?: string;
 }
 
+export interface PersistentSpeechServiceProbe {
+  scope: typeof MESSAGE_SCOPE;
+  type: 'speech-service-probe';
+  probeId: string;
+}
+
+export interface PersistentSpeechServiceReady {
+  scope: typeof MESSAGE_SCOPE;
+  type: 'speech-service-ready';
+  serviceId: string;
+  probeId?: string;
+}
+
 export interface PersistentSpeechState {
   scope: typeof MESSAGE_SCOPE;
   type: 'speech-state';
@@ -28,6 +41,8 @@ export interface PersistentSpeechState {
 export type PersistentSpeechMessage =
   | PersistentSpeechRequest
   | PersistentSpeechStop
+  | PersistentSpeechServiceProbe
+  | PersistentSpeechServiceReady
   | PersistentSpeechState;
 
 export function isPersistentSpeechMessage(value: unknown): value is PersistentSpeechMessage {
@@ -42,6 +57,22 @@ export function createSpeechRequest(requestId: string, content: SpeechContent): 
 
 export function createSpeechStop(requestId?: string): PersistentSpeechStop {
   return { scope: MESSAGE_SCOPE, type: 'speech-stop', requestId };
+}
+
+export function createSpeechServiceProbe(probeId: string): PersistentSpeechServiceProbe {
+  return { scope: MESSAGE_SCOPE, type: 'speech-service-probe', probeId };
+}
+
+export function createSpeechServiceReady(
+  serviceId: string,
+  probeId?: string,
+): PersistentSpeechServiceReady {
+  return {
+    scope: MESSAGE_SCOPE,
+    type: 'speech-service-ready',
+    serviceId,
+    ...(probeId ? { probeId } : {}),
+  };
 }
 
 export function createSpeechState(

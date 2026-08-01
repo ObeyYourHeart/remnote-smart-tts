@@ -31,6 +31,8 @@ The question and answer sides are detected independently, so a bilingual card ca
 - Chinese (`zh-CN`), English (`en-US`), and Japanese (`ja-JP`) language detection.
 - Independent voice selection for each supported language.
 - Voice switching between Chinese, English, and Japanese semantic segments inside one card.
+- Persistent-service readiness detection and question/answer plan reuse to avoid a failed-service probe or repeated CDF traversal on every side.
+- Browser Speech watchdogs, safe batching for unusually long Azure cards, and actionable Azure error categories.
 - Compact queue control with manual play, stop, and advanced voice setup.
 - Optional visual replacement of RemNote's built-in Front/Back TTS row.
 - Browser Speech for a free, simple setup.
@@ -47,6 +49,8 @@ Browser mode uses voices exposed through the Web Speech API. Availability depend
 Azure mode uses your own Speech resource, key, and region. Advanced Voice Setup dynamically loads the complete Azure catalog compatible with `zh-CN`, `en-US`, and `ja-JP`, while curated presets remain available if the catalog request fails. The plugin streams compressed MP3 audio to reduce time to first sound. Azure usage may incur charges under your Microsoft subscription.
 
 Within one review queue, the plugin reuses the Azure Speech connection after a completed utterance. The first utterance can still include Azure connection and model startup latency; later question and answer playback avoids repeating that connection handshake.
+
+Ordinary cards stay in one Azure request. Only unusually long structure-aware answers are divided into bounded semantic batches, preserving item order and language-specific voices while avoiding an oversized SSML failure.
 
 Azure playback is owned by the plugin's persistent index process rather than the temporary card control iframe. This keeps the connection alive when RemNote replaces the visible card UI; the card-local player remains available as a compatibility fallback.
 
@@ -112,6 +116,8 @@ RemNote Smart TTS 是一个理解卡片结构的 RemNote 复习队列朗读插�
 - 支持中文（`zh-CN`）、英文（`en-US`）和日文（`ja-JP`）检测。
 - 三种语言分别选择声音。
 - 同一卡片内可按语义段自动切换中文、英文和日文声音。
+- 检测常驻语音服务是否就绪，并在问题面与答案面之间复用卡片朗读计划，避免无效服务探测和重复遍历 CDF。
+- Browser Speech 具备超时恢复；超长 Azure 卡片会安全分包；Azure 失败会区分认证、额度、Region/声音、网络和超时。
 - 卡片内只保留紧凑的播放、停止和高级设置入口。
 - 可在视觉上替代 RemNote 自带的 Front/Back TTS 控件。
 - Browser Speech 免费且配置简单。
@@ -126,6 +132,8 @@ RemNote Smart TTS 是一个理解卡片结构的 RemNote 复习队列朗读插�
 #### Azure Speech
 
 Azure 模式需要你自己的 Speech resource、Key 和 Region。高级声音设置会动态加载 Azure 中与 `zh-CN`、`en-US`、`ja-JP` 兼容的完整目录；加载失败时仍可使用内置精选声音。插件以压缩 MP3 流式播放，从而缩短首次出声等待。Azure 可能按照你的 Microsoft 订阅产生费用。
+
+普通卡片仍保持一次 Azure 请求。只有异常长的结构化答案才会按语义段安全分包，在保留答案顺序和多语言声音的同时避免 SSML 过大导致整张卡片失败。
 
 Speech Key 只保存在 RemNote 插件的本机 storage，不会提交到仓库，也不会写入同步设置。只有当前需要合成的文字会发送到你配置的 Azure Speech endpoint。
 

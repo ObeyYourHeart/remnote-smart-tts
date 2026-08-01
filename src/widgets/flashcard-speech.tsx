@@ -7,6 +7,7 @@ import {
 } from '@remnote/plugin-sdk';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SpeechControl } from '../components/speech-control';
+import { createCardPlanCacheKey } from '../core/cardPlanCache';
 import { buildCardSpeechPlan } from '../core/cards';
 import {
   INITIAL_ORDERED_QUEUE_STATE,
@@ -15,6 +16,7 @@ import {
 import { readAzureKey, readSettings } from '../core/settings';
 import { SpeechController } from '../core/speech';
 import {
+  createSpeechServiceProbe,
   createSpeechRequest,
   createSpeechStop,
   isPersistentSpeechMessage,
@@ -39,7 +41,7 @@ interface PendingSpeechRequest {
 }
 
 const PERSISTENT_SPEECH_UNAVAILABLE = 'Persistent speech service unavailable.';
-const PERSISTENT_ACKNOWLEDGEMENT_MS = 220;
+const PERSISTENT_ACKNOWLEDGEMENT_MS = 400;
 const PERSISTENT_RETRY_COOLDOWN_MS = 30_000;
 const PERSISTENT_RETRY_STORAGE_KEY = 'remnote-smart-tts-persistent-retry-after';
 
@@ -85,6 +87,8 @@ function FlashcardSpeechWidget() {
   const autoSpeakTimerRef = useRef<number | null>(null);
   const orderedQueueStateRef = useRef(INITIAL_ORDERED_QUEUE_STATE);
   const activePersistentRequestIdRef = useRef<string | null>(null);
+  const persistentServiceReadyRef = useRef(false);
+  const cardPlanCacheRef = useRef<{ key: string; plan: CardSpeechPlan | null } | null>(null);
   const pendingSpeechRequestsRef = useRef(new Map<string, PendingSpeechRequest>());
 
   const refresh = useCallback(async (forceSettings = false) => {
@@ -99,17 +103,23 @@ function FlashcardSpeechWidget() {
         queueCardKey,
         nextContext.revealed,
       );
-      const signature = [
-        queueCardKey,
-        nextContext.revealed,
-        orderedQueueStateRef.current.itemIndex,
-      ].join(':');
-      if (!forceSettings && signature === contextSignatureRef.current) return;
-
       const [nextSettings, nextAzureKey] = await Promise.all([readSettings(plugin), readAzureKey(plugin)]);
-      const nextPlan = await buildCardSpeechPlan(plugin, nextContext, nextSettings, {
-        structuredItemIndex: orderedQueueStateRef.current.itemIndex,
-      });
+      const planCacheKey = createCardPlanCacheKey(
+        queueCardKey,
+        orderedQueueStateRef.current.itemIndex,
+        nextSettings,
+      );
+      let nextPlan: CardSpeechPlan | null;
+      if (cardPlanCacheRef.current?.key === planCacheKey) {
+        nextPlan = cardPlanCacheRef.current.plan;
+      } else {
+        nextPlan = await buildCardSpeechPlan(plugin, nextContext, nextSettings, {
+          structuredItemIndex: orderedQueueStateRef.current.itemIndex,
+        });
+        cardPlanCacheRef.current = { key: planCacheKey, plan: nextPlan };
+      }
+      const signature = [planCacheKey, nextContext.revealed].join(':');
+      if (!forceSettings && signature === contextSignatureRef.current) return;
 
       contextSignatureRef.current = signature;
       setContext(nextContext);
@@ -157,7 +167,7 @@ function FlashcardSpeechWidget() {
   }, []);
 
   const requestPersistentSpeech = useCallback((content: SpeechContent): Promise<SpeechPlaybackResult> => {
-    if (persistentSpeechIsCoolingDown()) {
+    if (!persistentServiceReadyRef.current || persistentSpeechIsCoolingDown()) {
       return Promise.reject(new Error(PERSISTENT_SPEECH_UNAVAILABLE));
     }
     const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -165,6 +175,7 @@ function FlashcardSpeechWidget() {
 
     return new Promise((resolve, reject) => {
       const acknowledgementTimer = window.setTimeout(() => {
+        persistentServiceReadyRef.current = false;
         pausePersistentSpeechRetry();
         pendingSpeechRequestsRef.current.delete(requestId);
         if (activePersistentRequestIdRef.current === requestId) activePersistentRequestIdRef.current = null;
@@ -187,6 +198,7 @@ function FlashcardSpeechWidget() {
         completionTimer,
       });
       void plugin.messaging.broadcast(createSpeechRequest(requestId, content)).catch(() => {
+        persistentServiceReadyRef.current = false;
         window.clearTimeout(acknowledgementTimer);
         window.clearTimeout(completionTimer);
         pendingSpeechRequestsRef.current.delete(requestId);
@@ -239,8 +251,8 @@ function FlashcardSpeechWidget() {
       if (result.fallbackReason) {
         await plugin.app.toast(
           settings.uiLanguage === 'zh'
-            ? 'Azure 暂不可用，已改用浏览器声音。'
-            : 'Azure was unavailable, so a browser voice was used.',
+            ? `Azure 已改用浏览器声音：${result.fallbackReason}`
+            : `Azure used a browser voice instead: ${result.fallbackReason}`,
         );
       }
       setStatus('idle');
@@ -270,9 +282,13 @@ function FlashcardSpeechWidget() {
     const handleQueueComplete = () => stopCurrentSpeech();
     const handleSettingsChange = () => void refresh(true);
     const handleSpeechMessage = (message: unknown) => {
-      if (isPersistentSpeechMessage(message) && message.type === 'speech-state') {
-        handlePersistentSpeechState(message);
+      if (!isPersistentSpeechMessage(message)) return;
+      if (message.type === 'speech-service-ready') {
+        persistentServiceReadyRef.current = true;
+        clearPersistentSpeechRetry();
+        return;
       }
+      if (message.type === 'speech-state') handlePersistentSpeechState(message);
     };
 
     plugin.event.addListener(AppEvents.RevealAnswer, listenerKey, handleReveal);
@@ -281,6 +297,10 @@ function FlashcardSpeechWidget() {
     plugin.event.addListener(AppEvents.StorageSyncedChange, listenerKey, handleSettingsChange);
     plugin.event.addListener(AppEvents.StorageLocalChange, listenerKey, handleSettingsChange);
     plugin.event.addListener(AppEvents.MessageBroadcast, listenerKey, handleSpeechMessage);
+    const probeId = `probe-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    void plugin.messaging.broadcast(createSpeechServiceProbe(probeId)).catch(() => {
+      persistentServiceReadyRef.current = false;
+    });
 
     // A lightweight poll also catches native plugin-setting changes and queue remounts.
     const pollId = window.setInterval(() => void refresh(true), 2500);
@@ -296,6 +316,7 @@ function FlashcardSpeechWidget() {
         window.clearTimeout(pending.completionTimer);
       }
       pendingSpeechRequestsRef.current.clear();
+      persistentServiceReadyRef.current = false;
       plugin.event.removeListener(AppEvents.RevealAnswer, listenerKey, handleReveal);
       plugin.event.removeListener(AppEvents.QueueLoadCard, listenerKey, handleQueueLoadCard);
       plugin.event.removeListener(AppEvents.QueueCompleteCard, listenerKey, handleQueueComplete);
