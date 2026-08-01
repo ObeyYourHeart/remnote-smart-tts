@@ -2,6 +2,7 @@ import type { RNPlugin } from '@remnote/plugin-sdk';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CURATED_AZURE_VOICES,
+  azureVoiceModelLabel,
   fetchAzureVoiceCatalog,
   type AzureVoice,
   type AzureVoiceCatalog,
@@ -97,7 +98,10 @@ function voiceOptionLabel(voice: AzureVoice): string {
   const name = voice.localName === voice.displayName
     ? voice.displayName
     : `${voice.localName} / ${voice.displayName}`;
-  return [name, voice.gender, 'HD'].filter(Boolean).join(' · ');
+  const previewLabel = voice.status && voice.status.toLowerCase() !== 'ga'
+    ? voice.status
+    : '';
+  return [name, voice.gender, azureVoiceModelLabel(voice), previewLabel].filter(Boolean).join(' · ');
 }
 
 function voicesIncludingSelection(

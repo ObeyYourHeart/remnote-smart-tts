@@ -24,16 +24,19 @@ export type AzureVoiceCatalog = Record<SupportedLanguage, AzureVoice[]>;
 export const CURATED_AZURE_VOICES: Record<SupportedLanguage, AzureVoice[]> = {
   zh: [
     createPreset('zh-CN-Xiaoxiao:DragonHDFlashLatestNeural', 'Xiaoxiao Dragon HD Flash Latest', '晓晓 Dragon HD Flash Latest', 'Female', 'zh-CN'),
+    createPreset('zh-CN-XiaoxiaoNeural', 'Xiaoxiao', '晓晓', 'Female', 'zh-CN', 'Neural'),
     createPreset('zh-CN-Xiaochen:DragonHDLatestNeural', 'Xiaochen Dragon HD Latest', '晓辰 Dragon HD Latest', 'Female', 'zh-CN'),
     createPreset('zh-CN-Yunfan:DragonHDLatestNeural', 'Yunfan Dragon HD Latest', '云帆 Dragon HD Latest', 'Male', 'zh-CN'),
   ],
   en: [
     createPreset('en-US-Jenny:DragonHDLatestNeural', 'Jenny Dragon HD Latest', 'Jenny Dragon HD Latest', 'Female', 'en-US'),
+    createPreset('en-US-JennyNeural', 'Jenny', 'Jenny', 'Female', 'en-US', 'Neural'),
     createPreset('en-US-Ava:DragonHDLatestNeural', 'Ava Dragon HD Latest', 'Ava Dragon HD Latest', 'Female', 'en-US'),
     createPreset('en-US-Andrew:DragonHDLatestNeural', 'Andrew Dragon HD Latest', 'Andrew Dragon HD Latest', 'Male', 'en-US'),
   ],
   ja: [
     createPreset('ja-JP-Nanami:DragonHDLatestNeural', 'Nanami Dragon HD Latest', '七海 Dragon HD Latest', 'Female', 'ja-JP'),
+    createPreset('ja-JP-NanamiNeural', 'Nanami', '七海', 'Female', 'ja-JP', 'Neural'),
     createPreset('ja-JP-Masaru:DragonHDLatestNeural', 'Masaru Dragon HD Latest', '勝 Dragon HD Latest', 'Male', 'ja-JP'),
   ],
 };
@@ -44,6 +47,7 @@ function createPreset(
   localName: string,
   gender: string,
   locale: string,
+  voiceType = 'Neural HD',
 ): AzureVoice {
   return {
     shortName,
@@ -52,7 +56,7 @@ function createPreset(
     gender,
     locale,
     localeName: locale,
-    voiceType: 'Neural HD',
+    voiceType,
     status: 'GA',
     styles: [],
     secondaryLocales: [],
@@ -83,6 +87,17 @@ export function isAzureHdVoiceName(shortName: string): boolean {
   return /:DragonHD/i.test(shortName.trim());
 }
 
+/** Return a concise model label without trusting Azure's occasionally misleading VoiceType field. */
+export function azureVoiceModelLabel(voice: Pick<AzureVoice, 'shortName' | 'voiceType'>): string {
+  const shortName = voice.shortName.trim();
+  if (/:DragonHDFlash/i.test(shortName)) return 'Dragon HD Flash';
+  if (/:DragonHD/i.test(shortName)) return 'Dragon HD';
+  if (/:MAI-Voice-2-Flash/i.test(shortName)) return 'MAI Flash';
+  if (/:MAI-Voice-2/i.test(shortName)) return 'MAI';
+  if (/MultilingualNeural/i.test(shortName)) return 'Multilingual Neural';
+  return voice.voiceType.trim() || 'Neural';
+}
+
 /** Convert Microsoft's response into the three locales currently supported by the plugin. */
 export function parseAzureVoiceCatalog(input: unknown): AzureVoiceCatalog {
   const catalog: AzureVoiceCatalog = { zh: [], en: [], ja: [] };
@@ -95,7 +110,7 @@ export function parseAzureVoiceCatalog(input: unknown): AzureVoiceCatalog {
     const shortName = stringValue(raw.ShortName);
     const locale = stringValue(raw.Locale);
     const language = LANGUAGE_BY_LOCALE[locale];
-    if (!shortName || !language || seen.has(shortName) || !isAzureHdVoiceName(shortName)) continue;
+    if (!shortName || !language || seen.has(shortName)) continue;
 
     seen.add(shortName);
     catalog[language].push({

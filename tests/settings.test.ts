@@ -26,7 +26,7 @@ test('normalizes the bilingual interface language', () => {
   assert.equal(normalizeSettings({ uiLanguage: 'en' }).uiLanguage, 'en');
 });
 
-test('replaces saved Standard Azure voices with HD defaults', () => {
+test('preserves saved Azure voices from every model family', () => {
   const settings = normalizeSettings({
     azureVoices: {
       zh: 'zh-CN-XiaoxiaoNeural',
@@ -35,9 +35,9 @@ test('replaces saved Standard Azure voices with HD defaults', () => {
     },
   });
 
-  assert.equal(settings.azureVoices.zh, 'zh-CN-Xiaoxiao:DragonHDFlashLatestNeural');
-  assert.equal(settings.azureVoices.en, 'en-US-Jenny:DragonHDLatestNeural');
-  assert.equal(settings.azureVoices.ja, 'ja-JP-Nanami:DragonHDLatestNeural');
+  assert.equal(settings.azureVoices.zh, 'zh-CN-XiaoxiaoNeural');
+  assert.equal(settings.azureVoices.en, 'en-US-JennyNeural');
+  assert.equal(settings.azureVoices.ja, 'ja-JP-Sakura:MAI-Voice-2-Flash');
 });
 
 test('reads everyday controls from RemNote native plugin settings', async () => {

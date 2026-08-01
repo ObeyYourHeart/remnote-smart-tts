@@ -1,7 +1,6 @@
 import type { RNPlugin } from '@remnote/plugin-sdk';
 import type { SpeechSettings, SupportedLanguage } from './types';
 import { readNativeSettings } from './nativeSettings';
-import { isAzureHdVoiceName } from './azureVoiceCatalog';
 
 export const SETTINGS_STORAGE_KEY = 'card-speech-settings-v1';
 export const AZURE_KEY_STORAGE_KEY = 'card-speech-azure-key-v1';
@@ -51,10 +50,10 @@ export function normalizeSettings(saved?: Partial<SpeechSettings> | null): Speec
     ? (saved?.defaultLanguage as SupportedLanguage)
     : DEFAULT_SETTINGS.defaultLanguage;
   const savedAzureVoices = saved?.azureVoices;
-  const normalizeAzureVoice = (language: SupportedLanguage): string => {
-    const selected = savedAzureVoices?.[language] ?? '';
-    return isAzureHdVoiceName(selected) ? selected : DEFAULT_SETTINGS.azureVoices[language];
-  };
+  // Preserve every valid Azure catalog choice, including Standard Neural and
+  // preview models. Defaults are used only when no voice was saved.
+  const normalizeAzureVoice = (language: SupportedLanguage): string =>
+    savedAzureVoices?.[language]?.trim() || DEFAULT_SETTINGS.azureVoices[language];
   const normalizedAzureVoices: SpeechSettings['azureVoices'] = {
     zh: normalizeAzureVoice('zh'),
     en: normalizeAzureVoice('en'),

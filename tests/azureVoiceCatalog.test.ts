@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   fetchAzureVoiceCatalog,
+  azureVoiceModelLabel,
   isAzureHdVoiceName,
   normalizeAzureRegion,
   parseAzureVoiceCatalog,
@@ -13,7 +14,7 @@ test('normalizes a valid Azure region and rejects arbitrary hosts', () => {
   assert.throws(() => normalizeAzureRegion(''), /required/);
 });
 
-test('keeps only genuine Dragon HD voices and removes duplicates', () => {
+test('keeps every supported Azure model and removes duplicates', () => {
   const catalog = parseAzureVoiceCatalog([
     { ShortName: 'zh-CN-Yunfan:DragonHDLatestNeural', DisplayName: 'Yunfan', LocalName: '云帆', Gender: 'Male', Locale: 'zh-CN' },
     { ShortName: 'zh-CN-Xiaoxiao:DragonHDFlashLatestNeural', DisplayName: 'Xiaoxiao', LocalName: '晓晓', Gender: 'Female', Locale: 'zh-CN' },
@@ -30,7 +31,10 @@ test('keeps only genuine Dragon HD voices and removes duplicates', () => {
     'zh-CN-Yunfan:DragonHDLatestNeural',
   ]);
   assert.equal(catalog.en[0]?.shortName, 'en-US-Jenny:DragonHDLatestNeural');
-  assert.deepEqual(catalog.ja, []);
+  assert.deepEqual(catalog.ja.map((voice) => voice.shortName), [
+    'ja-JP-NanamiNeural',
+    'ja-JP-Sakura:MAI-Voice-2-Flash',
+  ]);
 });
 
 test('identifies HD voices by the DragonHD model name instead of VoiceType', () => {
@@ -38,6 +42,12 @@ test('identifies HD voices by the DragonHD model name instead of VoiceType', () 
   assert.equal(isAzureHdVoiceName('zh-CN-Xiaoxiao:DragonHDFlashLatestNeural'), true);
   assert.equal(isAzureHdVoiceName('ja-JP-Sakura:MAI-Voice-2-Flash'), false);
   assert.equal(isAzureHdVoiceName('ja-JP-NanamiNeural'), false);
+});
+
+test('labels Azure models from their stable short names', () => {
+  assert.equal(azureVoiceModelLabel({ shortName: 'zh-CN-Xiaoxiao:DragonHDFlashLatestNeural', voiceType: 'NeuralHD' }), 'Dragon HD Flash');
+  assert.equal(azureVoiceModelLabel({ shortName: 'ja-JP-Sakura:MAI-Voice-2-Flash', voiceType: 'NeuralHD' }), 'MAI Flash');
+  assert.equal(azureVoiceModelLabel({ shortName: 'ja-JP-NanamiNeural', voiceType: 'Neural' }), 'Neural');
 });
 
 test('requests the regional Azure endpoint with the key only in a header', async () => {
