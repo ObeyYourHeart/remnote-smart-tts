@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Rem, RNPlugin } from '@remnote/plugin-sdk';
+import type { CardType, Rem, RNPlugin } from '@remnote/plugin-sdk';
 import { DEFAULT_SETTINGS } from '../src/core/settings';
 
 // The RemNote SDK ships a browser bundle that expects `self`. Defining the
@@ -23,7 +23,7 @@ function makeChild(text: string, isListItem: boolean, remId = ''): Rem {
 
 function makePlugin(
   rem: Rem,
-  cardType: 'forward' | 'backward' = 'forward',
+  cardType: CardType = 'forward',
   cardRem: Rem = rem,
 ): RNPlugin {
   const cardRemId = cardRem._id || 'card-rem';
@@ -39,6 +39,82 @@ function makePlugin(
     rem: { findOne: async (id: string) => id === cardRemId ? cardRem : rem },
   } as unknown as RNPlugin;
 }
+
+test('reads a Cloze in a Descriptor answer with its Concept and Descriptor', async () => {
+  const conceptRem = {
+    _id: 'chloroplast-cloze-concept',
+    type: 1,
+    text: ['叶绿体'],
+  } as unknown as Rem;
+  const descriptorRem = {
+    _id: 'chloroplast-cloze-descriptor',
+    type: 2,
+    text: ['结构'],
+    backText: [
+      '基质中含有',
+      { i: 'm', text: 'DNA', cId: 'descriptor-cloze' },
+      '。',
+    ],
+    hasPowerup: async () => false,
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(descriptorRem, { clozeId: 'descriptor-cloze' }),
+    { remId: descriptorRem._id, cardId: 'descriptor-cloze-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'cloze');
+  assert.equal(plan?.question.text, '叶绿体的结构。基质中含有 什么。');
+  assert.deepEqual(plan?.question.segments, ['叶绿体的结构', '基质中含有 什么。']);
+  assert.equal(plan?.answer.text, '叶绿体的结构。DNA');
+});
+
+test('inherits a complete Concept and Descriptor path for a child Cloze Rem', async () => {
+  const conceptRem = {
+    _id: 'cell-concept',
+    type: 1,
+    text: ['细胞'],
+  } as unknown as Rem;
+  const structureRem = {
+    _id: 'cell-structure',
+    type: 2,
+    text: ['结构'],
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+  const nucleusRem = {
+    _id: 'cell-nucleus',
+    type: 2,
+    text: ['细胞核'],
+    getParentRem: async () => structureRem,
+  } as unknown as Rem;
+  const clozeRem = {
+    _id: 'cell-cloze-child',
+    type: 0,
+    text: [
+      '主要储存',
+      { i: 'm', text: '遗传物质', cId: 'child-cloze' },
+      '。',
+    ],
+    backText: [],
+    hasPowerup: async () => false,
+    isCardItem: async () => false,
+    getParentRem: async () => nucleusRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(clozeRem, { clozeId: 'child-cloze' }),
+    { remId: clozeRem._id, cardId: 'child-cloze-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.question.text, '细胞的结构的细胞核。主要储存 什么。');
+  assert.deepEqual(plan?.question.segments, ['细胞的结构的细胞核', '主要储存 什么。']);
+  assert.equal(plan?.answer.text, '细胞的结构的细胞核。遗传物质');
+});
 
 test('builds a Concept Multi-Line plan even when the parent has no back text', async () => {
   const rem = {

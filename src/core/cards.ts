@@ -13,7 +13,7 @@ import {
   buildStructuredAnswer,
   buildStructuredAnswerSegments,
 } from './structuredCards';
-import type { CardSpeechPlan, SpeechSettings } from './types';
+import type { CardSpeechPlan, SpeechContent, SpeechSettings, SupportedLanguage } from './types';
 
 type FlashcardContext = WidgetLocationContextDataMap[WidgetLocation.FlashcardUnder];
 
@@ -81,6 +81,84 @@ async function readDescriptorPath(plugin: RNPlugin, descriptorRem: Rem): Promise
 }
 
 /**
+ * Finds the Concept/Descriptor outline that gives a Cloze its meaning.
+ *
+ * A Cloze in a Descriptor's back text belongs to that Descriptor, while a
+ * Cloze in a normal child Rem inherits the Descriptor path above it. A Cloze
+ * in a Descriptor's own title starts at the parent so the title is not spoken
+ * twice.
+ */
+async function readClozeContextPath(
+  plugin: RNPlugin,
+  clozeRem: Rem,
+  includeCurrentSemanticRem: boolean,
+): Promise<DescriptorPath | null> {
+  const descriptorTexts: string[] = [];
+  const visitedRemIds = new Set<string>();
+  let currentRem: Rem | undefined;
+
+  if (
+    includeCurrentSemanticRem &&
+    (clozeRem.type === RemType.CONCEPT || clozeRem.type === RemType.DESCRIPTOR)
+  ) {
+    currentRem = clozeRem;
+  } else {
+    try {
+      currentRem = await clozeRem.getParentRem();
+    } catch (error) {
+      console.warn('Could not read the parent of a contextual Cloze.', error);
+      return null;
+    }
+  }
+
+  for (let depth = 0; currentRem && depth < 64; depth += 1) {
+    if (currentRem._id) {
+      if (visitedRemIds.has(currentRem._id)) return null;
+      visitedRemIds.add(currentRem._id);
+    }
+
+    const currentText = await readPlainText(plugin, currentRem.text);
+    if (currentRem.type === RemType.CONCEPT) {
+      return currentText ? { conceptText: currentText, descriptorTexts } : null;
+    }
+    if (currentRem.type !== RemType.DESCRIPTOR || !currentText) return null;
+
+    descriptorTexts.unshift(currentText);
+    try {
+      currentRem = await currentRem.getParentRem();
+    } catch (error) {
+      console.warn('Could not read a parent in the Cloze context path.', error);
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function addClozeContext(
+  text: string,
+  subject: string,
+  language: SupportedLanguage,
+): SpeechContent {
+  const spokenText = text.trim();
+  const spokenSubject = subject.trim();
+  if (!spokenSubject || !spokenText) return { text: spokenText, language };
+
+  // If the note author already wrote the complete path into the sentence,
+  // preserve it instead of producing an echo such as "Concept, Concept...".
+  if (spokenText.toLocaleLowerCase().includes(spokenSubject.toLocaleLowerCase())) {
+    return { text: spokenText, language };
+  }
+
+  const separator = language === 'en' ? '. ' : '。';
+  return {
+    text: `${spokenSubject}${separator}${spokenText}`,
+    language,
+    segments: [spokenSubject, spokenText],
+  };
+}
+
+/**
  * Converts RemNote card metadata into the exact question/answer pair the speech layer needs.
  */
 export async function buildCardSpeechPlan(
@@ -109,7 +187,16 @@ export async function buildCardSpeechPlan(
   const activeCardId = context.cardId ?? card?._id ?? `rem:${rem._id || context.remId}`;
 
   if (typeof cardType === 'object' && 'clozeId' in cardType) {
-    const pieces = await richTextToPieces(plugin, rem.text);
+    const [frontPieces, backPieces] = await Promise.all([
+      richTextToPieces(plugin, rem.text),
+      richTextToPieces(plugin, rem.backText),
+    ]);
+    const frontHasActiveCloze = frontPieces.some((piece) => piece.clozeId === cardType.clozeId);
+    const backHasActiveCloze = backPieces.some((piece) => piece.clozeId === cardType.clozeId);
+    // Descriptor Clozes are commonly placed in backText. Search both sides
+    // instead of assuming every Cloze lives in the Rem's visible title.
+    const pieces = frontHasActiveCloze || !backHasActiveCloze ? frontPieces : backPieces;
+    const clozeIsInBackText = !frontHasActiveCloze && backHasActiveCloze;
     const rendered = renderActiveCloze(
       pieces,
       cardType.clozeId,
@@ -118,18 +205,31 @@ export async function buildCardSpeechPlan(
     );
     if (!rendered.questionText) return null;
 
+    const contextPath = await readClozeContextPath(plugin, rem, clozeIsInBackText);
+    const contextLanguage = contextPath
+      ? detectLanguage(
+        `${contextPath.conceptText} ${contextPath.descriptorTexts.join(' ')}`,
+        rendered.placeholderLanguage,
+      )
+      : rendered.placeholderLanguage;
+    const contextSubject = contextPath
+      ? buildDescriptorPathSubject(
+        contextPath.conceptText,
+        contextPath.descriptorTexts,
+        contextLanguage,
+      )
+      : '';
+    const question = addClozeContext(rendered.questionText, contextSubject, contextLanguage);
+    const rawAnswer = rendered.answerText || piecesToPlainText(pieces);
+    const answerLanguage = detectLanguage(`${contextSubject} ${rawAnswer}`, contextLanguage);
+    const answer = addClozeContext(rawAnswer, contextSubject, answerLanguage);
+
     return {
       cardId: activeCardId,
       remId: context.remId,
       kind: 'cloze',
-      question: {
-        text: rendered.questionText,
-        language: rendered.placeholderLanguage,
-      },
-      answer: {
-        text: rendered.answerText || piecesToPlainText(pieces),
-        language: detectLanguage(rendered.answerText, rendered.placeholderLanguage),
-      },
+      question,
+      answer,
     };
   }
 
