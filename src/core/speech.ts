@@ -257,15 +257,41 @@ export class SpeechController {
       // immediately so a fast browser rejection is not treated as unhandled.
       void playbackStarted.catch(() => undefined);
 
-      const playbackFinished = new Promise<void>((resolve) => {
-        player.onAudioEnd = () => resolve();
+      let markPlaybackFinished: () => void = () => undefined;
+      let markPlaybackFailed: (error: Error) => void = () => undefined;
+      let playbackSettled = false;
+      const playbackFinished = new Promise<void>((resolve, reject) => {
+        markPlaybackFinished = () => {
+          if (playbackSettled) return;
+          playbackSettled = true;
+          resolve();
+        };
+        markPlaybackFailed = (error) => {
+          if (playbackSettled) return;
+          playbackSettled = true;
+          reject(error);
+        };
       });
+      // A playback error may arrive before synthesis has completed. Attach a
+      // handler immediately and await the same promise below.
+      void playbackFinished.catch(() => undefined);
+      player.onAudioEnd = () => markPlaybackFinished();
       player.onAudioStart = () => {
         const audio = player.internalAudio;
         if (!audio) {
-          markPlaybackBlocked(new Error('Azure created no playable audio element.'));
+          const error = new Error('Azure created no playable audio element.');
+          markPlaybackBlocked(error);
+          markPlaybackFailed(error);
           return;
         }
+
+        // Some NeuralHD voices do not consistently trigger the SDK player's
+        // onAudioEnd callback. The underlying HTML audio element still reports
+        // its lifecycle, so use it as an additional completion/error signal.
+        audio.addEventListener('ended', markPlaybackFinished, { once: true });
+        audio.addEventListener('error', () => {
+          markPlaybackFailed(new Error('Azure audio playback failed.'));
+        }, { once: true });
 
         // The SDK creates its audio element only after the format is known, so
         // volume must be applied here rather than immediately after construction.
@@ -276,9 +302,13 @@ export class SpeechController {
             callbacks.onPlaybackStart?.();
             markPlaybackStarted();
           },
-          () => markPlaybackBlocked(new Error(
-            'Chrome blocked autoplay / Chrome 阻止了自动播放，请点击扬声器按钮启用声音。',
-          )),
+          () => {
+            const error = new Error(
+              'Chrome blocked autoplay / Chrome 阻止了自动播放，请点击扬声器按钮启用声音。',
+            );
+            markPlaybackBlocked(error);
+            markPlaybackFailed(error);
+          },
         );
       };
       const audioConfig = SpeechSDK.AudioConfig.fromSpeakerOutput(player);
@@ -330,10 +360,16 @@ export class SpeechController {
           () => reject(new Error('Azure audio playback timed out.')),
           90_000,
         );
-        void playbackFinished.then(() => {
-          window.clearTimeout(timeoutId);
-          resolve();
-        });
+        void playbackFinished.then(
+          () => {
+            window.clearTimeout(timeoutId);
+            resolve();
+          },
+          (error) => {
+            window.clearTimeout(timeoutId);
+            reject(error);
+          },
+        );
       });
       if (generation !== this.generation) return;
       this.activePlayer = null;

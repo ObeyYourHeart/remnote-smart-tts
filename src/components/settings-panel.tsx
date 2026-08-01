@@ -1,5 +1,5 @@
 import type { RNPlugin } from '@remnote/plugin-sdk';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CURATED_AZURE_VOICES,
   fetchAzureVoiceCatalog,
@@ -7,6 +7,7 @@ import {
   type AzureVoiceCatalog,
 } from '../core/azureVoiceCatalog';
 import { readAzureKey, readSettings, writeAzureKey, writeSettings } from '../core/settings';
+import { runPreviewWithTimeout } from '../core/preview';
 import { getAvailableBrowserVoices, SpeechController } from '../core/speech';
 import type { InterfaceLanguage, LanguageVoiceMap, SpeechSettings, SupportedLanguage } from '../core/types';
 import '../style.css';
@@ -42,11 +43,13 @@ const COPY = {
     automatic: 'Automatic — best available voice',
     preview: 'Preview',
     previewing: 'Playing…',
+    stop: 'Stop',
     save: 'Save voice setup',
     saving: 'Saving…',
     saved: 'Voice setup saved.',
     saveFailed: 'Could not save voice setup. Please try again.',
     previewFailed: 'Voice preview failed. Check the selected voice, Azure key, and region.',
+    previewTimedOut: 'Voice preview timed out and was stopped. Please try another voice.',
     fallback: 'Azure was unavailable, so this preview used a browser voice.',
     close: 'Close',
   },
@@ -74,11 +77,13 @@ const COPY = {
     automatic: '自动选择最佳可用声音',
     preview: '试听',
     previewing: '播放中…',
+    stop: '停止',
     save: '保存声音设置',
     saving: '保存中…',
     saved: '声音设置已保存。',
     saveFailed: '声音设置保存失败，请重试。',
     previewFailed: '试听失败，请检查声音、Azure Key 和 Region。',
+    previewTimedOut: '试听超时，已自动停止。请尝试其他声音。',
     fallback: 'Azure 暂不可用，本次试听已改用浏览器声音。',
     close: '关闭',
   },
@@ -128,6 +133,7 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [saving, setSaving] = useState(false);
   const [testingLanguage, setTestingLanguage] = useState<SupportedLanguage | null>(null);
+  const previewRequestRef = useRef(0);
   const [azureCatalog, setAzureCatalog] = useState<AzureVoiceCatalog>(CURATED_AZURE_VOICES);
   const [catalogStatus, setCatalogStatus] = useState<CatalogStatus>('idle');
   const [catalogRequest, setCatalogRequest] = useState(0);
@@ -143,6 +149,7 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
     refreshVoices();
     window.speechSynthesis.addEventListener('voiceschanged', refreshVoices);
     return () => {
+      previewRequestRef.current += 1;
       testController.cancel();
       window.speechSynthesis.removeEventListener('voiceschanged', refreshVoices);
     };
@@ -227,19 +234,35 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
   };
 
   const testVoice = async (language: SupportedLanguage) => {
+    if (testingLanguage === language) {
+      previewRequestRef.current += 1;
+      testController.cancel();
+      setTestingLanguage(null);
+      return;
+    }
+
+    const requestId = previewRequestRef.current + 1;
+    previewRequestRef.current = requestId;
     setTestingLanguage(language);
     try {
-      const result = await testController.speak(
-        { text: LANGUAGE_META[language].sample, language },
-        settings,
-        azureKey,
+      const result = await runPreviewWithTimeout(
+        testController.speak(
+          { text: LANGUAGE_META[language].sample, language },
+          settings,
+          azureKey,
+        ),
+        () => testController.cancel(),
       );
       if (result.fallbackReason) await plugin.app.toast(copy.fallback);
     } catch (error) {
+      if (requestId !== previewRequestRef.current) return;
       console.error('RemNote Smart TTS voice preview failed.', error);
-      await plugin.app.toast(copy.previewFailed);
+      const message = error instanceof Error && error.message === 'Voice preview timed out.'
+        ? copy.previewTimedOut
+        : copy.previewFailed;
+      await plugin.app.toast(message);
     } finally {
-      setTestingLanguage(null);
+      if (requestId === previewRequestRef.current) setTestingLanguage(null);
     }
   };
 
@@ -348,9 +371,17 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
                     </select>
                   )}
                 </label>
-                <button className="preview-button" type="button" onClick={() => void testVoice(language)} disabled={testingLanguage !== null}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-                  {testingLanguage === language ? copy.previewing : copy.preview}
+                <button
+                  className="preview-button"
+                  type="button"
+                  onClick={() => void testVoice(language)}
+                  disabled={testingLanguage !== null && testingLanguage !== language}
+                  aria-label={testingLanguage === language ? copy.stop : copy.preview}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d={testingLanguage === language ? 'M7 7h10v10H7z' : 'M8 5v14l11-7z'} />
+                  </svg>
+                  {testingLanguage === language ? copy.stop : copy.preview}
                 </button>
               </article>
             );
