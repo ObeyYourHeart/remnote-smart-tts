@@ -8,6 +8,65 @@ export interface StructuredCardData {
   itemRemIds: string[];
 }
 
+interface StructuredCardItemData {
+  remId: string;
+  text: string;
+  isListItem: boolean;
+  nested: boolean;
+}
+
+const MAX_GROUPING_DEPTH = 8;
+
+/**
+ * Reads tested children in outline order. Recursion is deliberately limited
+ * to ordinary grouping Rems; descendants of a card item belong to that item's
+ * own card and must not be expanded automatically.
+ */
+async function readGroupedCardItems(
+  plugin: RNPlugin,
+  children: Rem[],
+  groupingTexts: string[] = [],
+  depth = 0,
+  visitedRemIds: Set<string> = new Set(),
+): Promise<StructuredCardItemData[]> {
+  const items: StructuredCardItemData[] = [];
+
+  for (const child of children) {
+    try {
+      if (child._id && visitedRemIds.has(child._id)) continue;
+      const nextVisited = new Set(visitedRemIds);
+      if (child._id) nextVisited.add(child._id);
+
+      const childText = piecesToPlainText(await richTextToPieces(plugin, child.text)).trim();
+      if (await child.isCardItem()) {
+        if (!childText) continue;
+        items.push({
+          remId: child._id,
+          text: [...groupingTexts, childText].join('：'),
+          isListItem: await child.isListItem(),
+          nested: groupingTexts.length > 0,
+        });
+        continue;
+      }
+
+      if (depth >= MAX_GROUPING_DEPTH || typeof child.getChildrenRem !== 'function') continue;
+      const descendants = await child.getChildrenRem();
+      if (descendants.length === 0) continue;
+      items.push(...await readGroupedCardItems(
+        plugin,
+        descendants,
+        childText ? [...groupingTexts, childText] : groupingTexts,
+        depth + 1,
+        nextVisited,
+      ));
+    } catch (error) {
+      console.warn('RemNote Smart TTS skipped an unreadable structured-card branch.', error);
+    }
+  }
+
+  return items;
+}
+
 async function hasMultiLinePowerup(rem: Rem): Promise<boolean> {
   return rem.hasPowerup(BuiltInPowerupCodes.MultiLineCard);
 }
@@ -53,9 +112,9 @@ export async function resolveStructuredCardRoot(rem: Rem): Promise<Rem | null> {
 }
 
 /**
- * Reads the direct card-item children used by native Multi-Line and
- * List-Answer cards. Nested descendants are intentionally excluded because
- * RemNote reveals only direct children on the parent card by default.
+ * Reads direct card items and card items nested below ordinary grouping Rems.
+ * Descendants of an existing card item stay excluded because RemNote can test
+ * that item independently.
  */
 export async function readStructuredCard(
   plugin: RNPlugin,
@@ -66,19 +125,7 @@ export async function readStructuredCard(
     if (!allowUnmarked && !(await hasMultiLinePowerup(rem))) return null;
 
     const children = await rem.getChildrenRem();
-    const childData = await Promise.all(
-      children.map(async (child) => {
-        if (!(await child.isCardItem())) return null;
-        const pieces = await richTextToPieces(plugin, child.text);
-        const text = piecesToPlainText(pieces).trim();
-        if (!text) return null;
-        return { remId: child._id, text, isListItem: await child.isListItem() };
-      }),
-    );
-
-    const cardItems = childData.filter(
-      (item): item is { remId: string; text: string; isListItem: boolean } => item !== null,
-    );
+    const cardItems = await readGroupedCardItems(plugin, children);
     // `isCardItem()` is the actual child-level SDK marker. Some native
     // Descriptor Multi-Line cards expose these children without reporting the
     // parent MultiLineCard powerup, so do not require both signals.
@@ -87,7 +134,9 @@ export async function readStructuredCard(
     return {
       // A List-Answer card marks every answer child as an ordered list item.
       // Mixed structures stay Multi-Line instead of inventing a false order.
-      kind: cardItems.every((item) => item.isListItem) ? 'list-answer' : 'multi-line',
+      kind: cardItems.every((item) => item.isListItem && !item.nested)
+        ? 'list-answer'
+        : 'multi-line',
       items: cardItems.map((item) => item.text),
       itemRemIds: cardItems.map((item) => item.remId),
     };

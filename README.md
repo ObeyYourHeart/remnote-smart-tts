@@ -20,8 +20,8 @@ RemNote Smart TTS is a structure-aware speech plugin for the RemNote review queu
 | Nested Descriptor path | Keeps every Descriptor from the nearest Concept through deeply nested sub-descriptors. |
 | CDF descendants | Keeps the Concept/Descriptor subject when an ordinary A/B, Cloze, Multi-Line, or List-Answer card appears deeper in the outline. Ordinary grouping Rems are spoken as separate context sentences instead of being misclassified as Descriptors. |
 | Cloze | Replaces only the active blank with `什么`, `what`, or `なに`; nested Clozes read their full Concept/Descriptor path, answer-side Clozes keep the local A/B front, and revealed answers restore the complete sentence. |
-| Multi-Line / Set | Asks what the set includes, then reads answer children as separate semantic sentences. |
-| Ordered List-Answer | Asks for the current step and reads only the item currently being tested. |
+| Multi-Line / Set | Asks what the set includes, then reads answer children as separate semantic sentences. Card items below ordinary grouping Rems retain their grouping path, while descendants of an existing card item stay independent. |
+| Ordered List-Answer | Asks for the current step and reads only the item currently being tested. A stale queue index is bounded to one valid item instead of unexpectedly reading the complete list. |
 
 The question and answer sides are detected independently, so a bilingual card can use different voices on each side.
 
@@ -105,8 +105,8 @@ RemNote Smart TTS 是一个理解卡片结构的 RemNote 复习队列朗读插�
 | 嵌套 Descriptor 路径 | 从最近的 Concept 开始保留每一级 Descriptor，不截断更深子级。 |
 | CDF 后代卡片 | 普通 A/B、Cloze、Multi-Line 或 List-Answer 位于 Concept/Descriptor 更深层时，仍会保留 CDF 主语；夹在其中的普通分组 Rem 会作为独立上下文句朗读，不会被误判成 Descriptor。 |
 | Cloze | 只把当前挖空替换为 `什么`、`what` 或 `なに`；嵌套 Cloze 会朗读完整 Concept/Descriptor 路径，答案侧 Cloze 会保留当前 A/B Rem 的问题侧，揭示答案后恢复并朗读完整句子。 |
-| Multi-Line / Set | 用“包括什么”提问，再把各个答案 Rem 作为独立语义句依次朗读。 |
-| Ordered List-Answer | 询问当前第几步，并只朗读当前正在测试的项目。 |
+| Multi-Line / Set | 用“包括什么”提问，再把各个答案 Rem 作为独立语义句依次朗读。普通分组 Rem 下的后代 card-item 会保留分组路径；已经是 card-item 的 Rem 不会自动展开自己的子卡。 |
+| Ordered List-Answer | 询问当前第几步，并只朗读当前正在测试的项目。队列索引异常时会限制在一个有效项目，不会突然朗读完整列表。 |
 
 问题面和答案面会分别判断语言，因此中英或中日双语卡片可以在两面自动切换声音。
 

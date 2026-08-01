@@ -179,6 +179,14 @@ function addSpeechContext(
   if (!spokenText) return { text: '', language };
 
   const normalizedText = spokenText.toLocaleLowerCase();
+  const alreadyStartsWithContext = (normalizedSegment: string): boolean => {
+    if (normalizedText === normalizedSegment) return true;
+    if (!normalizedText.startsWith(normalizedSegment)) return false;
+    const remainder = normalizedText.slice(normalizedSegment.length);
+    // Only accept a clear grammatical or punctuation boundary. Han scripts do
+    // not expose general word boundaries, so uncertain prefixes stay audible.
+    return /^(?:\s|[,.!?:;，。！？：；]|的|是|有|为|包括|は|が|の|を|に|で|と|も)/u.test(remainder);
+  };
   const uniqueContextSegments = contextSegments
     .map((segment) => segment.trim())
     .filter(Boolean)
@@ -186,7 +194,7 @@ function addSpeechContext(
       const normalizedSegment = segment.toLocaleLowerCase();
       // Do not repeat context already written into the Cloze sentence or an
       // earlier context segment.
-      return !normalizedText.includes(normalizedSegment) &&
+      return !alreadyStartsWithContext(normalizedSegment) &&
         segments.findIndex(
           (candidate) => candidate.toLocaleLowerCase() === normalizedSegment,
         ) === index;
@@ -381,14 +389,15 @@ export async function buildCardSpeechPlan(
       ? structuredCard.itemRemIds.indexOf(initialRem._id)
       : -1;
     const trackedItemIndex = options.structuredItemIndex;
+    const boundedTrackedItemIndex = structuredCard.kind === 'list-answer' &&
+      trackedItemIndex !== undefined &&
+      trackedItemIndex >= 0 &&
+      structuredCard.items.length > 0
+      ? Math.min(Math.floor(trackedItemIndex), structuredCard.items.length - 1)
+      : -1;
     const activeListItemIndex = childRemIndex >= 0
       ? childRemIndex
-      : structuredCard.kind === 'list-answer' &&
-        trackedItemIndex !== undefined &&
-        trackedItemIndex >= 0 &&
-        trackedItemIndex < structuredCard.items.length
-        ? trackedItemIndex
-        : -1;
+      : boundedTrackedItemIndex;
     const readsOneListItem = activeListItemIndex >= 0;
     if (readsOneListItem && cardType !== 'backward') {
       questionText = buildOrderedItemQuestion(subject || frontText, activeListItemIndex, questionLanguage);

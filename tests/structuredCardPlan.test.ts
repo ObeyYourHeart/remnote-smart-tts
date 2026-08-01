@@ -992,3 +992,97 @@ test('keeps later Descriptor-looking levels separate after an ordinary CDF group
     '参与 什么 合成',
   ]);
 });
+
+test('reads card-item descendants through ordinary grouping Rems', async () => {
+  const marketGroup = {
+    _id: 'risk-market-group',
+    type: 0,
+    text: ['市场风险'],
+    isCardItem: async () => false,
+    getChildrenRem: async () => [
+      makeChild('利率风险', false, 'interest-risk'),
+      makeChild('汇率风险', false, 'currency-risk'),
+    ],
+  } as unknown as Rem;
+  const rootRem = {
+    _id: 'risk-root',
+    type: 0,
+    text: ['风险分类'],
+    backText: [],
+    hasPowerup: async () => true,
+    isCardItem: async () => false,
+    getChildrenRem: async () => [marketGroup],
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(rootRem),
+    { remId: rootRem._id, cardId: 'risk-card', revealed: true },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.equal(plan?.kind, 'multi-line-forward');
+  assert.deepEqual(plan?.answer.segments?.map((segment) => segment.text), [
+    '答案包括以下内容。',
+    '市场风险：利率风险。',
+    '市场风险：汇率风险。',
+  ]);
+});
+
+test('clamps an out-of-range ordered index instead of reading every item', async () => {
+  const rootRem = {
+    _id: 'bounded-order-root',
+    type: 0,
+    text: ['实验步骤'],
+    backText: [],
+    hasPowerup: async () => true,
+    isCardItem: async () => false,
+    getChildrenRem: async () => [
+      makeChild('准备样品', true, 'bounded-step-1'),
+      makeChild('加入试剂', true, 'bounded-step-2'),
+      makeChild('记录结果', true, 'bounded-step-3'),
+    ],
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(rootRem),
+    { remId: rootRem._id, cardId: 'bounded-order-card', revealed: true },
+    DEFAULT_SETTINGS,
+    { structuredItemIndex: 99 },
+  );
+
+  assert.equal(plan?.question.text, '实验的第三步是什么？');
+  assert.deepEqual(plan?.answer.segments?.map((segment) => segment.text), [
+    '第三，记录结果。',
+  ]);
+});
+
+test('does not drop a short CDF context that is only a word prefix', async () => {
+  const conceptRem = {
+    _id: 'structure-prefix-concept',
+    type: 1,
+    text: ['结构'],
+  } as unknown as Rem;
+  const ordinaryRem = {
+    _id: 'structure-prefix-leaf',
+    type: 0,
+    text: ['结构性风险需要单独评估'],
+    backText: ['需要检查期限错配'],
+    hasPowerup: async () => false,
+    isCardItem: async () => false,
+    getParentRem: async () => conceptRem,
+  } as unknown as Rem;
+
+  const buildCardSpeechPlan = await loadCardPlanner();
+  const plan = await buildCardSpeechPlan(
+    makePlugin(ordinaryRem),
+    { remId: ordinaryRem._id, cardId: 'structure-prefix-card', revealed: false },
+    DEFAULT_SETTINGS,
+  );
+
+  assert.deepEqual(plan?.question.segments?.map((segment) => segment.text), [
+    '结构',
+    '结构性风险需要单独评估',
+  ]);
+});
