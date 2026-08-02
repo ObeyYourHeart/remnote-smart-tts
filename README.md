@@ -61,20 +61,16 @@ Other external speech providers may be added later without changing the card-str
 
 #### Edge Local Voice (edge-tts bridge)
 
-Edge Local Voice uses Microsoft Edge's free online neural voices through a small Python service running on your own computer. Because the voices come from a local service instead of the browser, they work in Chrome, Edge, and the RemNote desktop app alike.
+Edge Local Voice uses Microsoft Edge's free online neural voices through a small local service, so the same natural voices (Xiaoxiao, Yunxi, Aria, Nanami, ...) work in any browser or the RemNote desktop app.
 
 Setup:
 
 1. Install Python 3.9+ from python.org.
-2. Run `scripts/start-edge-tts.ps1` once. It installs `edge-tts` and starts the service at `http://127.0.0.1:8765`; the service is only reachable from this PC.
+2. Run `scripts/start-edge-tts.ps1` once. It installs the required dependency and starts the local service.
 3. In RemNote Settings → Plugins → RemNote Smart TTS, set **Voice provider** to **Edge Local Voice**.
-4. Open **Advanced Voice Setup**, optionally change the server URL, choose a voice per language, and preview it.
+4. Open **Advanced Voice Setup**, choose a voice per language, and preview it.
 
-Known limits:
-
-- The local service must be running while you review cards. Run `scripts/start-edge-tts.ps1` again after a reboot, or add it to your startup apps.
-- `edge-tts` uses Microsoft's free Edge speech endpoint, which is not an official public API and may change without notice.
-- Synthesis needs internet access to Microsoft's speech servers; a strict proxy can block it.
+The service runs only on your own computer and must be running while you review cards; enable the included startup helper so it starts automatically with Windows.
 
 ### Installation
 
@@ -95,7 +91,7 @@ The RemNote Plugin SDK does not expose a supported way to read or disable RemNot
 - Full table narration, image-occlusion descriptions, and LaTeX Cloze interpretation need additional structured data from RemNote.
 - Browser autoplay policies can still block audio in some iframe or mobile contexts; manual playback remains available.
 - Dynamic Azure selection currently lists the three locales the plugin can synthesize correctly: `zh-CN`, `en-US`, and `ja-JP`.
-- Edge Local Voice needs its local service running (`scripts/start-edge-tts.ps1`); see the provider section above.
+- Edge Local Voice needs the local service running; use the included startup helper for automatic start.
 
 ### Development
 
@@ -158,20 +154,16 @@ Speech Key 只保存在 RemNote 插件的本机 storage，不会提交到仓库�
 
 #### Edge 本地语音（edge-tts 桥接）
 
-Edge 本地语音通过运行在你电脑上的一个小型 Python 服务，使用微软 Edge 的免费在线神经语音。因为声音来自本地服务而不是浏览器，所以 Chrome、Edge 和 RemNote 桌面版都能使用相同的自然音色（晓晓、云希、Aria、Nanami 等）。
+Edge 本地语音通过运行在你电脑上的一个小型本地服务，使用微软 Edge 的免费在线神经语音。因为声音来自本地服务而不是浏览器，所以 Chrome、Edge 和 RemNote 桌面版都能使用相同的自然音色（晓晓、云希、Aria、Nanami 等）。
 
 设置步骤：
 
 1. 从 python.org 安装 Python 3.9+。
-2. 运行一次 `scripts/start-edge-tts.ps1`，它会安装 `edge-tts` 并启动 `http://127.0.0.1:8765` 本地服务（只允许本机访问）。
+2. 运行一次 `scripts/start-edge-tts.ps1`，它会安装所需依赖并启动本地服务。
 3. 在 RemNote 设置 → 插件 → RemNote Smart TTS 中，把**声音来源**设为 **Edge 本地语音**。
-4. 打开**高级声音设置**，可按需要修改服务地址、为每种语言选择声音并试听。
+4. 打开**高级声音设置**，为每种语言选择声音并试听。
 
-已知限制：
-
-- 复习时需要保持本地服务运行；重启电脑后再次运行 `scripts/start-edge-tts.ps1`，或把它加入开机启动。
-- `edge-tts` 使用微软免费的 Edge 语音接口，这不是官方公开 API，微软调整后可能失效。
-- 合成需要访问微软语音服务器，严格的代理设置可能会拦截。
+本地服务只在你自己的电脑上运行，复习时需要保持运行；可以使用随附的开机自启脚本让它随 Windows 自动启动。
 
 ### 安装
 
@@ -192,7 +184,7 @@ RemNote Plugin SDK 目前没有提供读取或关闭官方 TTS 设置的可靠�
 - 完整表格朗读、图片遮挡描述和 LaTeX Cloze 理解仍需要 RemNote 提供更多结构化数据。
 - 某些 iframe 或移动端环境可能受浏览器自动播放策略限制，此时仍可手动播放。
 - Azure 动态目录目前只展示插件能够正确合成的三个 locale：`zh-CN`、`en-US`、`ja-JP`。
-- Edge 本地语音需要先启动本地服务（`scripts/start-edge-tts.ps1`），详见上面的声音来源说明。
+- Edge 本地语音需要本地服务保持运行，建议使用随附的开机自启脚本。
 
 ### 本地开发
 
