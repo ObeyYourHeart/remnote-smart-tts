@@ -4,6 +4,7 @@ import { readNativeSettings } from './nativeSettings';
 
 export const SETTINGS_STORAGE_KEY = 'card-speech-settings-v1';
 export const AZURE_KEY_STORAGE_KEY = 'card-speech-azure-key-v1';
+export const DEFAULT_EDGE_LOCAL_URL = 'http://127.0.0.1:8765';
 
 export const DEFAULT_SETTINGS: SpeechSettings = {
   uiLanguage: 'en',
@@ -26,6 +27,12 @@ export const DEFAULT_SETTINGS: SpeechSettings = {
     en: 'en-US-Jenny:DragonHDLatestNeural',
     ja: 'ja-JP-Nanami:DragonHDLatestNeural',
   },
+  edgeServerUrl: DEFAULT_EDGE_LOCAL_URL,
+  edgeVoices: {
+    zh: 'zh-CN-XiaoxiaoNeural',
+    en: 'en-US-AriaNeural',
+    ja: 'ja-JP-NanamiNeural',
+  },
   clozeWords: {
     zh: '什么',
     en: 'what',
@@ -45,7 +52,10 @@ function clamp(value: unknown, minimum: number, maximum: number, fallback: numbe
  */
 export function normalizeSettings(saved?: Partial<SpeechSettings> | null): SpeechSettings {
   const uiLanguage = saved?.uiLanguage === 'zh' ? 'zh' : 'en';
-  const provider = saved?.provider === 'azure' ? 'azure' : 'browser';
+  const provider =
+    saved?.provider === 'azure' || saved?.provider === 'edge-local'
+      ? saved.provider
+      : 'browser';
   const defaultLanguage = LANGUAGES.includes(saved?.defaultLanguage as SupportedLanguage)
     ? (saved?.defaultLanguage as SupportedLanguage)
     : DEFAULT_SETTINGS.defaultLanguage;
@@ -59,6 +69,15 @@ export function normalizeSettings(saved?: Partial<SpeechSettings> | null): Speec
     en: normalizeAzureVoice('en'),
     ja: normalizeAzureVoice('ja'),
   };
+  const savedEdgeVoices = saved?.edgeVoices;
+  const normalizeEdgeVoice = (language: SupportedLanguage): string =>
+    savedEdgeVoices?.[language]?.trim() || DEFAULT_SETTINGS.edgeVoices[language];
+  const normalizedEdgeVoices: SpeechSettings['edgeVoices'] = {
+    zh: normalizeEdgeVoice('zh'),
+    en: normalizeEdgeVoice('en'),
+    ja: normalizeEdgeVoice('ja'),
+  };
+  const edgeServerUrl = saved?.edgeServerUrl?.trim() || DEFAULT_SETTINGS.edgeServerUrl;
 
   return {
     ...DEFAULT_SETTINGS,
@@ -76,6 +95,10 @@ export function normalizeSettings(saved?: Partial<SpeechSettings> | null): Speec
     },
     azureVoices: {
       ...normalizedAzureVoices,
+    },
+    edgeServerUrl,
+    edgeVoices: {
+      ...normalizedEdgeVoices,
     },
     clozeWords: {
       ...DEFAULT_SETTINGS.clozeWords,

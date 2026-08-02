@@ -6,6 +6,7 @@ dist-ssr
 *.zip
 preview-dist
 dev-server*.log
+edge-tts-server*.log
 __pycache__
 *.pyc
 task_plan.md

@@ -10,6 +10,12 @@ import {
 import { readAzureKey, readSettings, writeAzureKey, writeSettings } from '../core/settings';
 import { runPreviewWithTimeout } from '../core/preview';
 import { getAvailableBrowserVoices, SpeechController } from '../core/speech';
+import { CURATED_EDGE_VOICES, type EdgeLocalVoice } from '../core/edgeVoiceCatalog';
+import {
+  fetchEdgeLocalHealth,
+  fetchEdgeLocalVoices,
+  normalizeEdgeLocalUrl,
+} from '../core/edgeLocalClient';
 import type { InterfaceLanguage, LanguageVoiceMap, SpeechSettings, SupportedLanguage } from '../core/types';
 import '../style.css';
 
@@ -92,6 +98,48 @@ const COPY = {
 
 const testController = new SpeechController();
 
+const EDGE_LOCAL_COPY = {
+  en: {
+    edgeLocal: 'Edge Local Voice',
+    edgeLocalDetail: 'Free Microsoft neural voices via the local edge-tts service',
+    edgeLocalService: 'Local service',
+    serverUrl: 'Server URL',
+    check: 'Check connection',
+    checking: 'Checking…',
+    online: 'Service online · {count} voices.',
+    offline: 'Service offline — run scripts/start-edge-tts.ps1 first.',
+  },
+  zh: {
+    edgeLocal: 'Edge 本机语音',
+    edgeLocalDetail: '通过本地 edge-tts 服务使用微软免费神经语音',
+    edgeLocalService: '本地服务',
+    serverUrl: '服务地址',
+    check: '检查连接',
+    checking: '检查中…',
+    online: '服务已连接 · {count} 个语音。',
+    offline: '服务未运行 — 请先运行 scripts/start-edge-tts.ps1。',
+  },
+} as const;
+
+function mergeCuratedEdgeVoices(serverVoices: EdgeLocalVoice[]): EdgeLocalVoice[] {
+  const seen = new Set<string>();
+  const merged: EdgeLocalVoice[] = [];
+  for (const voice of [...serverVoices, ...Object.values(CURATED_EDGE_VOICES).flat()]) {
+    if (!voice.name || seen.has(voice.name)) continue;
+    seen.add(voice.name);
+    merged.push(voice);
+  }
+  return merged;
+}
+
+function edgeVoicesIncludingSelection(
+  voices: EdgeLocalVoice[],
+  selectedVoice: string,
+): EdgeLocalVoice[] {
+  if (!selectedVoice || voices.some((voice) => voice.name === selectedVoice)) return voices;
+  return [{ name: selectedVoice, locale: voices[0]?.locale ?? '', gender: '' }, ...voices];
+}
+
 type CatalogStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 function voiceOptionLabel(voice: AzureVoice): string {
@@ -141,6 +189,9 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
   const [azureCatalog, setAzureCatalog] = useState<AzureVoiceCatalog>(CURATED_AZURE_VOICES);
   const [catalogStatus, setCatalogStatus] = useState<CatalogStatus>('idle');
   const [catalogRequest, setCatalogRequest] = useState(0);
+  const [edgeCatalog, setEdgeCatalog] = useState<EdgeLocalVoice[]>(() => mergeCuratedEdgeVoices([]));
+  const [edgeStatus, setEdgeStatus] = useState<'idle' | 'checking' | 'online' | 'offline'>('idle');
+  const [edgeRefresh, setEdgeRefresh] = useState(0);
 
   useEffect(() => {
     void Promise.all([readSettings(plugin), readAzureKey(plugin)]).then(([savedSettings, savedKey]) => {
@@ -201,6 +252,33 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
     };
   }, [azureKey, catalogRequest, settings?.azureRegion, settings?.provider]);
 
+  useEffect(() => {
+    if (settings?.provider !== 'edge-local') return undefined;
+    let disposed = false;
+    const serverUrl = normalizeEdgeLocalUrl(settings.edgeServerUrl);
+    setEdgeStatus('checking');
+    const timer = window.setTimeout(() => {
+      void fetchEdgeLocalHealth(serverUrl).then((online) => {
+        if (disposed) return;
+        setEdgeStatus(online ? 'online' : 'offline');
+        if (!online) return;
+        void fetchEdgeLocalVoices(serverUrl).then(
+          (serverVoices) => {
+            if (disposed) return;
+            setEdgeCatalog(mergeCuratedEdgeVoices(serverVoices));
+          },
+          () => {
+            if (!disposed) setEdgeStatus('offline');
+          },
+        );
+      });
+    }, 300);
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+    };
+  }, [edgeRefresh, settings?.edgeServerUrl, settings?.provider]);
+
   const browserVoices = useMemo(() => {
     const result: Record<SupportedLanguage, SpeechSynthesisVoice[]> = { zh: [], en: [], ja: [] };
     for (const voice of voices) {
@@ -212,12 +290,28 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
     return result;
   }, [voices]);
 
+  const edgeVoices = useMemo(() => {
+    const result: Record<SupportedLanguage, EdgeLocalVoice[]> = { zh: [], en: [], ja: [] };
+    for (const voice of edgeCatalog) {
+      const locale = voice.locale.toLowerCase();
+      if (locale.startsWith('zh')) result.zh.push(voice);
+      if (locale.startsWith('en')) result.en.push(voice);
+      if (locale.startsWith('ja')) result.ja.push(voice);
+    }
+    return result;
+  }, [edgeCatalog]);
+
   if (!settings) return <main className="voice-setup voice-setup--loading"><WaveMark /></main>;
   const copy = COPY[displayLanguage];
+  const edgeCopy = EDGE_LOCAL_COPY[displayLanguage];
   const compatibleVoiceCount = Object.values(azureCatalog)
     .reduce((sum, languageVoices) => sum + languageVoices.length, 0);
 
-  const updateVoice = (field: 'browserVoices' | 'azureVoices', language: SupportedLanguage, value: string) => {
+  const updateVoice = (
+    field: 'browserVoices' | 'azureVoices' | 'edgeVoices',
+    language: SupportedLanguage,
+    value: string,
+  ) => {
     setSettings((current) => current && ({
       ...current,
       [field]: { ...current[field], [language]: value } as LanguageVoiceMap,
@@ -303,8 +397,29 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
         <div className="section-title"><span>01</span><h2>{copy.provider}</h2></div>
         <div className="provider-summary">
           <div className="provider-summary__icon"><WaveMark /></div>
-          <div><strong>{settings.provider === 'azure' ? copy.azure : copy.browser}</strong><small>{settings.provider === 'azure' ? 'Microsoft Cognitive Services' : 'Web Speech API'}</small></div>
-          <span className="status-chip">{settings.provider === 'azure' ? 'AZURE' : 'LOCAL'}</span>
+          <div>
+            <strong>
+              {settings.provider === 'azure'
+                ? copy.azure
+                : settings.provider === 'edge-local'
+                  ? edgeCopy.edgeLocal
+                  : copy.browser}
+            </strong>
+            <small>
+              {settings.provider === 'azure'
+                ? 'Microsoft Cognitive Services'
+                : settings.provider === 'edge-local'
+                  ? edgeCopy.edgeLocalDetail
+                  : 'Web Speech API'}
+            </small>
+          </div>
+          <span className="status-chip">
+            {settings.provider === 'azure'
+              ? 'AZURE'
+              : settings.provider === 'edge-local'
+                ? 'EDGE'
+                : 'LOCAL'}
+          </span>
         </div>
 
         {settings.provider === 'azure' && (
@@ -326,11 +441,51 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
             <p className="privacy-note"><span aria-hidden="true">●</span>{copy.privacy}</p>
           </div>
         )}
+
+        {settings.provider === 'edge-local' && (
+          <div className="credential-panel">
+            <div className="section-title section-title--inverse">
+              <span>02</span><h2>{edgeCopy.edgeLocalService}</h2>
+            </div>
+            <div className="credential-grid">
+              <label>
+                <span>{edgeCopy.serverUrl}</span>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  value={settings.edgeServerUrl}
+                  onChange={(event) => setSettings({ ...settings, edgeServerUrl: event.target.value })}
+                  placeholder="http://127.0.0.1:8765"
+                />
+              </label>
+            </div>
+            <div className="edge-local-status">
+              <button
+                className="catalog-refresh-button"
+                type="button"
+                onClick={() => setEdgeRefresh((request) => request + 1)}
+                disabled={edgeStatus === 'checking'}
+              >
+                {edgeCopy.check}
+              </button>
+              <span
+                className={`voice-catalog-status voice-catalog-status--${
+                  edgeStatus === 'online' ? 'ready' : edgeStatus === 'offline' ? 'error' : 'loading'
+                }`}
+                role="status"
+              >
+                {edgeStatus === 'checking' && edgeCopy.checking}
+                {edgeStatus === 'online' && edgeCopy.online.replace('{count}', String(edgeCatalog.length))}
+                {edgeStatus === 'offline' && edgeCopy.offline}
+              </span>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="voice-setup__section">
         <div className="section-title section-title--voices">
-          <span>{settings.provider === 'azure' ? '03' : '02'}</span>
+          <span>{settings.provider === 'azure' || settings.provider === 'edge-local' ? '03' : '02'}</span>
           <h2>{copy.voices}</h2>
           {settings.provider === 'azure' && (
             <button
@@ -367,6 +522,21 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
                       ).map((voice) => (
                         <option key={voice.shortName} value={voice.shortName}>
                           {voiceOptionLabel(voice)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : settings.provider === 'edge-local' ? (
+                    <select
+                      value={settings.edgeVoices[language]}
+                      onChange={(event) => updateVoice('edgeVoices', language, event.target.value)}
+                    >
+                      {edgeVoicesIncludingSelection(
+                        edgeVoices[language],
+                        settings.edgeVoices[language],
+                      ).map((voice) => (
+                        <option key={voice.name} value={voice.name}>
+                          {voice.name}
+                          {voice.gender === 'Female' ? ' · Female' : voice.gender === 'Male' ? ' · Male' : ''}
                         </option>
                       ))}
                     </select>

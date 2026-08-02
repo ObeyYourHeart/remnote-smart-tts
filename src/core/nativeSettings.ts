@@ -61,6 +61,11 @@ export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
     options: [
       { key: 'browser', label: 'Browser voice / 浏览器声音', value: 'browser' },
       { key: 'azure', label: 'Azure Neural Voice', value: 'azure' },
+      {
+        key: 'edge-local',
+        label: 'Edge Local Voice / 本机 Edge 语音（edge-tts）',
+        value: 'edge-local',
+      },
     ],
   });
   await plugin.settings.registerDropdownSetting({

@@ -40,6 +40,33 @@ test('preserves saved Azure voices from every model family', () => {
   assert.equal(settings.azureVoices.ja, 'ja-JP-Sakura:MAI-Voice-2-Flash');
 });
 
+test('accepts the Edge Local provider with usable defaults', () => {
+  const settings = normalizeSettings({ provider: 'edge-local' });
+
+  assert.equal(settings.provider, 'edge-local');
+  assert.equal(settings.edgeServerUrl, 'http://127.0.0.1:8765');
+  assert.equal(settings.edgeVoices.zh, 'zh-CN-XiaoxiaoNeural');
+  assert.equal(settings.edgeVoices.en, 'en-US-AriaNeural');
+  assert.equal(settings.edgeVoices.ja, 'ja-JP-NanamiNeural');
+});
+
+test('preserves saved Edge Local server URL and voices', () => {
+  const settings = normalizeSettings({
+    provider: 'edge-local',
+    edgeServerUrl: 'http://127.0.0.1:9000',
+    edgeVoices: {
+      zh: 'zh-CN-YunxiNeural',
+      en: 'en-US-GuyNeural',
+      ja: 'ja-JP-KeitaNeural',
+    },
+  });
+
+  assert.equal(settings.edgeServerUrl, 'http://127.0.0.1:9000');
+  assert.equal(settings.edgeVoices.zh, 'zh-CN-YunxiNeural');
+  assert.equal(settings.edgeVoices.en, 'en-US-GuyNeural');
+  assert.equal(settings.edgeVoices.ja, 'ja-JP-KeitaNeural');
+});
+
 test('reads everyday controls from RemNote native plugin settings', async () => {
   const values = new Map<string, unknown>([
     [NATIVE_SETTING_IDS.uiLanguage, 'zh'],

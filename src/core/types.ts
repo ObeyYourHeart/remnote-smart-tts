@@ -1,6 +1,6 @@
 export type SupportedLanguage = 'zh' | 'en' | 'ja';
 
-export type SpeechProvider = 'browser' | 'azure';
+export type SpeechProvider = 'browser' | 'azure' | 'edge-local';
 
 export type InterfaceLanguage = 'en' | 'zh';
 
@@ -25,6 +25,9 @@ export interface SpeechSettings {
   browserVoices: LanguageVoiceMap;
   azureRegion: string;
   azureVoices: LanguageVoiceMap;
+  /** Local edge-tts bridge (Edge Local Voice provider). */
+  edgeServerUrl: string;
+  edgeVoices: LanguageVoiceMap;
   clozeWords: LanguageVoiceMap;
 }
 

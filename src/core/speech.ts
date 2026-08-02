@@ -1,4 +1,10 @@
 import { AzureMp3StreamPlayer } from './azureStreamPlayer';
+import {
+  normalizeEdgeLocalUrl,
+  playEdgeLocalAudio,
+  synthesizeEdgeLocalAudio,
+  type EdgeLocalPlaybackHandle,
+} from './edgeLocalClient';
 import { formatAzureSpeechError } from './speechErrors';
 import type {
   SpeechContent,
@@ -271,6 +277,7 @@ export class SpeechController {
   private azureSession: AzureSpeechSession | null = null;
   private azureSessionBusy = false;
   private activeAzurePlayer: AzureMp3StreamPlayer | null = null;
+  private activeEdgePlayback: EdgeLocalPlaybackHandle | null = null;
 
   cancel(): void {
     this.generation += 1;
@@ -280,6 +287,8 @@ export class SpeechController {
     // WebSocket. An in-flight session is disposed because starting a second
     // synthesis while cancellation is settling can corrupt the SDK player.
     if (this.azureSessionBusy) this.disposeAzureSession();
+    this.activeEdgePlayback?.stop();
+    this.activeEdgePlayback = null;
   }
 
   /** Fully releases the Azure connection when the queue is finished. */
@@ -287,6 +296,8 @@ export class SpeechController {
     this.generation += 1;
     window.speechSynthesis.cancel();
     this.disposeAzureSession();
+    this.activeEdgePlayback?.stop();
+    this.activeEdgePlayback = null;
   }
 
   async speak(
@@ -326,8 +337,75 @@ export class SpeechController {
       }
     }
 
+    if (settings.provider === 'edge-local') {
+      if (!settings.edgeServerUrl.trim()) {
+        const reason = 'Edge 本地语音服务地址未配置。';
+        if (!settings.fallbackToBrowser) throw new Error(reason);
+        await this.speakWithBrowser(content, settings, currentGeneration, callbacks);
+        return { provider: 'browser', fallbackReason: reason };
+      }
+
+      try {
+        await this.speakWithEdgeLocal(content, settings, currentGeneration, callbacks);
+        return { provider: 'edge-local' };
+      } catch (error) {
+        const blockedByChrome =
+          error instanceof Error && error.message.startsWith('Chrome blocked autoplay');
+        // Browser speech is blocked by the same RemNote iframe policy. Keep
+        // the precise Edge Local message instead of failing twice.
+        if (blockedByChrome) throw error;
+        if (currentGeneration !== this.generation) throw error;
+        const reason = error instanceof Error ? error.message : String(error);
+        if (!settings.fallbackToBrowser) throw new Error(reason);
+        await this.speakWithBrowser(content, settings, currentGeneration, callbacks);
+        return { provider: 'browser', fallbackReason: reason };
+      }
+    }
+
     await this.speakWithBrowser(content, settings, currentGeneration, callbacks);
     return { provider: 'browser' };
+  }
+
+  private async speakWithEdgeLocal(
+    content: SpeechContent,
+    settings: SpeechSettings,
+    generation: number,
+    callbacks: SpeechPlaybackCallbacks,
+  ): Promise<void> {
+    const serverUrl = normalizeEdgeLocalUrl(settings.edgeServerUrl);
+    const semanticSegments = normalizeSpeechSegments(content);
+    const sources = semanticSegments.length > 0
+      ? semanticSegments
+      : [{ text: content.text, language: content.language }];
+    const chunks = sources.flatMap((segment) =>
+      splitSpeechText(segment.text).map((text) => ({ text, language: segment.language })),
+    );
+
+    for (const chunk of chunks) {
+      if (generation !== this.generation) return;
+      // One request per semantic chunk. Flashcards are short, so the complete
+      // MP3 arrives quickly and playback can be stopped at a chunk boundary.
+      const audioData = await synthesizeEdgeLocalAudio(
+        serverUrl,
+        chunk.text,
+        settings.edgeVoices[chunk.language],
+        settings.rate,
+      );
+      if (generation !== this.generation) return;
+
+      const playback = playEdgeLocalAudio(
+        audioData,
+        settings.volume,
+        callbacks.onPlaybackStart,
+      );
+      this.activeEdgePlayback = playback;
+      try {
+        await playback.finished;
+      } finally {
+        if (this.activeEdgePlayback === playback) this.activeEdgePlayback = null;
+      }
+      if (generation !== this.generation) return;
+    }
   }
 
   private async speakWithBrowser(
