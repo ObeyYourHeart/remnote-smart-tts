@@ -29,7 +29,9 @@ test('normalizes the local server URL', () => {
   assert.equal(normalizeEdgeLocalUrl('http://127.0.0.1:8765/'), 'http://127.0.0.1:8765');
   assert.equal(normalizeEdgeLocalUrl(''), DEFAULT_EDGE_LOCAL_URL);
   assert.equal(normalizeEdgeLocalUrl('127.0.0.1:8765'), 'http://127.0.0.1:8765');
-  assert.equal(normalizeEdgeLocalUrl('https://example.com/path'), 'https://example.com');
+  assert.equal(normalizeEdgeLocalUrl('http://localhost:8765/path'), 'http://localhost:8765');
+  assert.equal(normalizeEdgeLocalUrl('http://[::1]:8765/path'), 'http://[::1]:8765');
+  assert.equal(normalizeEdgeLocalUrl('https://example.com/path'), DEFAULT_EDGE_LOCAL_URL);
 });
 
 test('curated catalog contains every default Edge voice', () => {

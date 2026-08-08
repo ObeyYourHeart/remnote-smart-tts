@@ -1,11 +1,10 @@
 import type { RNPlugin } from '@remnote/plugin-sdk';
 import type { SpeechSettings, SupportedLanguage } from './types';
 import { readNativeSettings } from './nativeSettings';
+import { DEFAULT_EDGE_LOCAL_URL, normalizeEdgeLocalUrl } from './edgeLocalClient';
 
 export const SETTINGS_STORAGE_KEY = 'card-speech-settings-v1';
 export const AZURE_KEY_STORAGE_KEY = 'card-speech-azure-key-v1';
-export const DEFAULT_EDGE_LOCAL_URL = 'http://127.0.0.1:8765';
-
 export const DEFAULT_SETTINGS: SpeechSettings = {
   uiLanguage: 'en',
   enabled: true,
@@ -77,7 +76,9 @@ export function normalizeSettings(saved?: Partial<SpeechSettings> | null): Speec
     en: normalizeEdgeVoice('en'),
     ja: normalizeEdgeVoice('ja'),
   };
-  const edgeServerUrl = saved?.edgeServerUrl?.trim() || DEFAULT_SETTINGS.edgeServerUrl;
+  const edgeServerUrl = normalizeEdgeLocalUrl(
+    saved?.edgeServerUrl?.trim() || DEFAULT_SETTINGS.edgeServerUrl,
+  );
 
   return {
     ...DEFAULT_SETTINGS,

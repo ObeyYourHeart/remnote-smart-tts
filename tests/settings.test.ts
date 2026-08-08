@@ -67,6 +67,15 @@ test('preserves saved Edge Local server URL and voices', () => {
   assert.equal(settings.edgeVoices.ja, 'ja-JP-KeitaNeural');
 });
 
+test('rejects a remote Edge Local server URL', () => {
+  const settings = normalizeSettings({
+    provider: 'edge-local',
+    edgeServerUrl: 'https://example.com/speech',
+  });
+
+  assert.equal(settings.edgeServerUrl, 'http://127.0.0.1:8765');
+});
+
 test('reads everyday controls from RemNote native plugin settings', async () => {
   const values = new Map<string, unknown>([
     [NATIVE_SETTING_IDS.uiLanguage, 'zh'],

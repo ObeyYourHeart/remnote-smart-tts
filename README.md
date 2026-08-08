@@ -1,5 +1,7 @@
 # RemNote Smart TTS
 
+Structure-aware text-to-speech for RemNote flashcards.
+
 [English](#english) · [简体中文](#简体中文)
 
 [![Release](https://img.shields.io/github/v/release/ObeyYourHeart/remnote-smart-tts)](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest)
@@ -8,90 +10,102 @@
 
 ## English
 
-RemNote Smart TTS is a structure-aware speech plugin for the RemNote review queue. It reads a card as a question and an answer—not as an unstructured block of text—and switches among Chinese, English, and Japanese voices automatically.
+RemNote Smart TTS reads the meaning of a flashcard instead of treating the card as one unstructured block of text. It understands common RemNote card layouts, builds a spoken question and answer, and switches voices when a card contains Chinese, English, or Japanese.
 
-### Card-aware speech
+### Highlights
 
-| Card structure | Spoken behavior |
-|---|---|
-| Basic | Reads the visible question, then the answer after reveal; forward and backward directions are supported. |
-| Concept | Turns the Concept into a complete question and answer, such as “What is the P/E ratio?” |
-| Descriptor | Includes the parent Concept, such as “What is the formula of the P/E ratio?” |
-| Nested Descriptor path | Keeps every Descriptor from the nearest Concept through deeply nested sub-descriptors. |
-| CDF descendants | Keeps the Concept/Descriptor subject when an ordinary A/B, Cloze, Multi-Line, or List-Answer card appears deeper in the outline. Ordinary grouping Rems are spoken as separate context sentences instead of being misclassified as Descriptors. |
-| Cloze | Replaces only the active blank with `什么`, `what`, or `なに`; nested Clozes read their full Concept/Descriptor path, answer-side Clozes keep the local A/B front, and revealed answers restore the complete sentence. |
-| Multi-Line / Set | Asks what the set includes, then reads answer children as separate semantic sentences. Card items below ordinary grouping Rems retain their grouping path, while descendants of an existing card item stay independent. |
-| Ordered List-Answer | Asks for the current step and reads only the item currently being tested. A stale queue index is bounded to one valid item instead of unexpectedly reading the complete list. |
+- Automatic playback for the question, answer, or both sides.
+- Independent language detection for each side of a card.
+- Concept and Descriptor prompts that preserve the semantic path of nested notes.
+- Cloze prompts that replace the active blank with a configurable equivalent of “what”, “什么”, or “なに”.
+- Multi-Line and List-Answer playback with separate semantic answer items.
+- Ordered-card prompts such as “What is the second step?” rather than reading the entire list at once.
+- Browser Speech, Azure Speech, and Edge Local Voice providers.
+- Separate voice selection for Chinese (`zh-CN`), English (`en-US`), and Japanese (`ja-JP`).
+- Optional visual replacement for RemNote’s built-in Front/Back TTS controls.
+- Cancellation of stale requests when the active card changes.
 
-The question and answer sides are detected independently, so a bilingual card can use different voices on each side.
+### Supported card structures
 
-### Features
+| Structure | Spoken result | Example |
+| --- | --- | --- |
+| Basic A → B | Reads the question, then the answer after reveal. | “What is photosynthesis?” → “Photosynthesis converts light energy into chemical energy.” |
+| Concept | Turns a Concept into a complete definition question. | “What is photosynthesis?” |
+| Descriptor | Includes the parent Concept and the Descriptor. | “What are the inputs for photosynthesis?” |
+| Nested Descriptor | Keeps the full Concept → Descriptor → sub-Descriptor path. | “What is the role of chlorophyll in photosynthesis?” |
+| Cloze | Replaces only the active blank and restores the full sentence when revealed. | “The capital of Australia is what?” |
+| Multi-Line / Set | Introduces the set, then reads each answer item as its own sentence. | “What does a pour-over coffee recipe include?” followed by each item. |
+| List-Answer / Ordered | Reads the item currently being tested and its ordinal position. | “What is the second step to brew the coffee?” |
+| Concept/Descriptor descendants | Keeps the semantic parent when a deeper A/B, Cloze, Multi-Line, or List-Answer card is tested. | A nested note still explains the relevant parent concept. |
 
-- Automatic question and answer playback with Off, Question, Answer, and Both modes.
-- Chinese (`zh-CN`), English (`en-US`), and Japanese (`ja-JP`) language detection.
-- Independent voice selection for each supported language.
-- Voice switching between Chinese, English, and Japanese semantic segments inside one card.
-- Persistent-service readiness detection and question/answer plan reuse to avoid a failed-service probe or repeated CDF traversal on every side.
-- Browser Speech watchdogs, safe batching for unusually long Azure cards, and actionable Azure error categories.
-- Compact queue control with manual play, stop, and advanced voice setup.
-- Optional visual replacement of RemNote's built-in Front/Back TTS row.
-- Browser Speech for a free, simple setup.
-- Edge Local Voice for the same free Microsoft neural voices Edge uses, from any browser.
-- An extensible speech-provider boundary, with Azure Speech as the first optional external provider.
+The question and answer are planned separately. This allows a bilingual card to use an English voice for the question and a Chinese or Japanese voice for the answer without losing the card’s structure.
 
 ### Voice providers
 
 #### Browser Speech
 
-Browser mode uses voices exposed through the Web Speech API. Availability depends on the browser and operating system. Chrome normally cannot access Edge-only Online Natural Voices.
+Uses the Web Speech API exposed by the current browser and operating system. It is free and requires no credentials, but the available voices vary by platform. Chrome may not expose the same online neural voices that Microsoft Edge provides.
 
 #### Azure Speech
 
-Azure mode uses your own Speech resource, key, and region. Advanced Voice Setup dynamically loads the complete Azure catalog compatible with `zh-CN`, `en-US`, and `ja-JP`, while curated presets remain available if the catalog request fails. The plugin streams compressed MP3 audio to reduce time to first sound. Azure usage may incur charges under your Microsoft subscription.
+Uses your own Azure Speech resource, key, and region. Advanced Voice Setup can load the available catalog for the supported locales and lets you select a voice independently for each language. Audio is streamed as compressed MP3 where possible, and unusually long structured answers are split into safe semantic batches.
 
-Within one review queue, the plugin reuses the Azure Speech connection after a completed utterance. The first utterance can still include Azure connection and model startup latency; later question and answer playback avoids repeating that connection handshake.
+The Speech Key is stored only in local RemNote plugin storage. It is never committed to this repository or written to synchronized settings. Only the text being synthesized is sent to the Azure Speech endpoint configured by you. Azure usage may incur charges under your Microsoft subscription.
 
-Ordinary cards stay in one Azure request. Only unusually long structure-aware answers are divided into bounded semantic batches, preserving item order and language-specific voices while avoiding an oversized SSML failure.
+#### Edge Local Voice
 
-Azure playback is owned by the plugin's persistent index process rather than the temporary card control iframe. This keeps the connection alive when RemNote replaces the visible card UI; the card-local player remains available as a compatibility fallback.
+Uses a small local `edge-tts` bridge to access Microsoft Edge’s online neural voices from Chrome, Edge, or the RemNote desktop app. This is useful when you want voices such as Xiaoxiao, Yunxi, Aria, or Nanami without putting an Azure key into the plugin.
 
-The Speech Key is stored only in local RemNote plugin storage. It is never committed to this repository or placed in synchronized settings. Only text being synthesized is sent to the configured Azure Speech endpoint.
-
-Other external speech providers may be added later without changing the card-structure layer.
-
-#### Edge Local Voice (edge-tts bridge)
-
-Edge Local Voice uses Microsoft Edge's free online neural voices through a small local service, so the same natural voices (Xiaoxiao, Yunxi, Aria, Nanami, ...) work in any browser or the RemNote desktop app.
+The bridge listens on loopback only and accepts requests from RemNote and localhost development pages. Speech synthesis still requires an internet connection because the text is forwarded to Microsoft’s Edge speech service.
 
 Setup:
 
-1. Install Python 3.9+ from python.org.
-2. Run `scripts/start-edge-tts.ps1` once. It installs the required dependency and starts the local service.
-3. In RemNote Settings → Plugins → RemNote Smart TTS, set **Voice provider** to **Edge Local Voice**.
-4. Open **Advanced Voice Setup**, choose a voice per language, and preview it.
+1. Install Python 3.9 or newer.
+2. Download [EdgeLocalService.zip](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest/download/EdgeLocalService.zip).
+3. Extract it and run `scripts/start-edge-tts.ps1`.
+4. In RemNote settings, select **Edge Local Voice** as the provider.
+5. Open **Advanced Voice Setup**, choose voices, and preview them.
 
-The service runs only on your own computer and must be running while you review cards; enable the included startup helper so it starts automatically with Windows.
+The service must be running while reviewing cards. The included startup helper can launch it with Windows.
 
 ### Installation
 
-Install RemNote Smart TTS from the RemNote Plugin Store when available, or download the current release package:
+Install the plugin from the RemNote Plugin Store when it becomes available, or download the release packages:
 
-- [Download PluginZip.zip](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest/download/PluginZip.zip)
-- [View releases](https://github.com/ObeyYourHeart/remnote-smart-tts/releases)
+- [PluginZip.zip](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest/download/PluginZip.zip) — RemNote plugin
+- [EdgeLocalService.zip](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest/download/EdgeLocalService.zip) — optional Edge Local Voice bridge
+- [All releases](https://github.com/ObeyYourHeart/remnote-smart-tts/releases)
 
-Everyday options live in **RemNote Settings → Plugins → RemNote Smart TTS**. Azure credentials, Edge Local server settings, voice selection, and previews are grouped in **Advanced Voice Setup**.
+Everyday controls are available in **RemNote Settings → Plugins → RemNote Smart TTS**. Provider credentials, local server settings, voice choices, and previews are grouped in **Advanced Voice Setup**.
 
-### RemNote TTS coexistence
+### Configuration
 
-The RemNote Plugin SDK does not expose a supported way to read or disable RemNote's own TTS settings. If two voices play, turn off the corresponding RemNote Queue TTS option or set this plugin's autoplay mode to Off. The “Replace RemNote TTS controls” option changes only the visible queue UI; it does not modify RemNote preferences.
+- **Autoplay mode**: Off, Question only, Answer only, or Question and answer.
+- **Voice provider**: Browser, Azure, or Edge Local Voice.
+- **Language voices**: Choose one voice independently for Chinese, English, and Japanese.
+- **Fallback to Browser**: Use a browser voice when an external provider is unavailable.
+- **Speech rate and volume**: Adjust playback without changing the card text.
+- **Cloze prompts**: Customize the spoken replacement for an active blank in each language.
+- **Replace RemNote TTS controls**: Hide the visible Front/Back row while leaving RemNote’s own setting untouched.
 
-### Known limits
+### RemNote’s built-in TTS
 
-- Multiple-Choice correctness is not exposed reliably by the public Plugin SDK, so the plugin does not guess the correct answer.
-- Full table narration, image-occlusion descriptions, and LaTeX Cloze interpretation need additional structured data from RemNote.
-- Browser autoplay policies can still block audio in some iframe or mobile contexts; manual playback remains available.
-- Dynamic Azure selection currently lists the three locales the plugin can synthesize correctly: `zh-CN`, `en-US`, and `ja-JP`.
-- Edge Local Voice needs the local service running; use the included startup helper for automatic start.
+The public RemNote Plugin SDK does not provide a supported way to read or disable RemNote’s own TTS preference. If two voices play at once, turn off RemNote Queue TTS or set this plugin’s autoplay mode to Off. The replacement option changes only the visible queue controls; it does not modify RemNote’s preferences.
+
+### Privacy and security
+
+- Browser Speech stays in the browser.
+- Azure keys stay in local plugin storage and are not synchronized or committed.
+- The Edge bridge binds to `127.0.0.1` and rejects untrusted origins.
+- Switching cards cancels unfinished local synthesis requests.
+- No credentials are included in the repository or release packages.
+
+### Known limitations
+
+- The public SDK does not reliably expose the correct choice for Multiple-Choice cards, so the plugin does not guess it.
+- Tables, image occlusion, and some LaTeX-heavy Clozes need richer structured data from RemNote.
+- Browser autoplay policies can block automatic playback in some iframe or mobile contexts; manual playback remains available.
+- Azure and Edge Local Voice require network access. Edge Local Voice also requires the local bridge to be running.
 
 ### Development
 
@@ -102,91 +116,53 @@ npm test
 npm run build
 ```
 
-The production package is generated as `PluginZip.zip`. Localhost builds use a separate `-dev` plugin ID so they can coexist with an installed release.
-
----
+The production plugin is generated as `PluginZip.zip`. The build also creates `EdgeLocalService.zip`. The localhost development build uses a separate `-dev` plugin ID so it can coexist with a production installation.
 
 ## 简体中文
 
-RemNote Smart TTS 是一个理解卡片结构的 RemNote 复习队列朗读插件。它不会把卡片当作一整段文字机械朗读，而是根据问题面、答案面、卡片方向和语义结构组织更自然的语音，并自动切换中文、英文和日文声音。
-
-### 卡片结构朗读
-
-| 卡片结构 | 朗读方式 |
-|---|---|
-| Basic | 进入卡片时朗读问题，揭晓后朗读答案；支持正向和反向。 |
-| Concept | 把概念组织成完整问答，例如“市盈率是什么？”“市盈率是……”。 |
-| Descriptor | 带上所属 Concept，例如“市盈率的算法是什么？”“市盈率的算法是……”。 |
-| 嵌套 Descriptor 路径 | 从最近的 Concept 开始保留每一级 Descriptor，不截断更深子级。 |
-| CDF 后代卡片 | 普通 A/B、Cloze、Multi-Line 或 List-Answer 位于 Concept/Descriptor 更深层时，仍会保留 CDF 主语；夹在其中的普通分组 Rem 会作为独立上下文句朗读，不会被误判成 Descriptor。 |
-| Cloze | 只把当前挖空替换为 `什么`、`what` 或 `なに`；嵌套 Cloze 会朗读完整 Concept/Descriptor 路径，答案侧 Cloze 会保留当前 A/B Rem 的问题侧，揭示答案后恢复并朗读完整句子。 |
-| Multi-Line / Set | 用“包括什么”提问，再把各个答案 Rem 作为独立语义句依次朗读。普通分组 Rem 下的后代 card-item 会保留分组路径；已经是 card-item 的 Rem 不会自动展开自己的子卡。 |
-| Ordered List-Answer | 询问当前第几步，并只朗读当前正在测试的项目。队列索引异常时会限制在一个有效项目，不会突然朗读完整列表。 |
-
-问题面和答案面会分别判断语言，因此中英或中日双语卡片可以在两面自动切换声音。
+RemNote Smart TTS 是一个面向 RemNote 复习队列的结构化朗读插件。它不会把整张卡片当成一段普通文本，而是识别问题面、答案面、Concept、Descriptor、Cloze、Multi-Line 和有序答案等结构，先生成更自然的朗读句子，再按中文、英文、日文自动切换声音。
 
 ### 主要功能
 
-- 自动朗读可选择关闭、仅问题、仅答案或问题与答案。
-- 支持中文（`zh-CN`）、英文（`en-US`）和日文（`ja-JP`）检测。
-- 三种语言分别选择声音。
-- 同一卡片内可按语义段自动切换中文、英文和日文声音。
-- 检测常驻语音服务是否就绪，并在问题面与答案面之间复用卡片朗读计划，避免无效服务探测和重复遍历 CDF。
-- Browser Speech 具备超时恢复；超长 Azure 卡片会安全分包；Azure 失败会区分认证、额度、Region/声音、网络和超时。
-- 卡片内只保留紧凑的播放、停止和高级设置入口。
-- 可在视觉上替代 RemNote 自带的 Front/Back TTS 控件。
-- Browser Speech 免费且配置简单。
-- 声音来源采用可扩展结构；Azure Speech 是目前第一个可选外部服务，未来可以继续增加其他 API。
+- 自动朗读问题、答案，或两者。
+- 问题面和答案面分别检测语言。
+- Concept、Descriptor 以及多层嵌套 Descriptor 保留完整语义路径。
+- Cloze 只替换当前正在测试的挖空位置，并可分别设置中文、英文、日文提示词。
+- Multi-Line 和 List-Answer 按答案项分别朗读。
+- 顺序卡只朗读当前测试步骤，并加入“第几步”的问题提示。
+- 支持 Browser Speech、Azure Speech 和 Edge Local Voice。
+- 中文、英文、日文可分别选择声音。
+- 可选地隐藏 RemNote 官方 Front/Back TTS 控件。
+- 切换卡片时取消过期的语音请求，减少串音和错误播放。
+
+### 卡片结构示例
+
+| 结构 | 朗读方式 |
+| --- | --- |
+| Basic A → B | 先读问题，显示答案后再读答案。 |
+| Concept | 将概念组织成完整的定义问题。 |
+| Descriptor | 将父级 Concept 和当前 Descriptor 组合成完整问题。 |
+| 嵌套 Descriptor | 保留 Concept → Descriptor → 子 Descriptor 的完整路径。 |
+| Cloze | 当前挖空位置使用可配置的“什么 / what / なに”，揭示后恢复完整句子。 |
+| Multi-Line / Set | 先说明集合包含哪些内容，再逐项朗读答案。 |
+| List-Answer / Ordered | 只朗读当前测试的第几项和该项内容。 |
+| Concept/Descriptor 下的子卡片 | 深层的普通 A/B、Cloze、Multi-Line 或 List-Answer 仍保留上层语义。 |
+
+例如，一个关于光合作用的 Concept 可以被朗读为“光合作用是什么？”，其下的 Descriptor 可以被朗读为“光合作用的输入是什么？”。这些示例只是说明规则，不要求你的笔记使用固定文本。
 
 ### 声音来源
 
-#### 浏览器声音
+- **Browser Speech**：免费、不需要密钥，但声音取决于浏览器和操作系统。
+- **Azure Speech**：使用你自己的 Azure Speech 资源、Key 和 Region，可动态加载可用声音目录。
+- **Edge Local Voice**：通过本地 `edge-tts` 桥接服务使用微软 Edge 在线神经声音，不需要 Azure Key，但需要本地服务和网络连接。
 
-浏览器模式使用 Web Speech API 提供的声音，具体列表取决于浏览器和操作系统。Chrome 通常无法使用 Edge 专属的 Online Natural Voice。
+Azure Key 只保存在本机 RemNote 插件 storage，不会提交到 GitHub，也不会写入同步设置。Edge 桥接服务只监听本机回环地址，并限制允许的来源。
 
-#### Azure Speech
+### 安装与开发
 
-Azure 模式需要你自己的 Speech resource、Key 和 Region。高级声音设置会动态加载 Azure 中与 `zh-CN`、`en-US`、`ja-JP` 兼容的完整目录；加载失败时仍可使用内置精选声音。插件以压缩 MP3 流式播放，从而缩短首次出声等待。Azure 可能按照你的 Microsoft 订阅产生费用。
+从 [Releases](https://github.com/ObeyYourHeart/remnote-smart-tts/releases) 下载 `PluginZip.zip` 并上传到 RemNote。使用 Edge Local Voice 时，再下载并运行 `EdgeLocalService.zip` 中的 `scripts/start-edge-tts.ps1`。
 
-普通卡片仍保持一次 Azure 请求。只有异常长的结构化答案才会按语义段安全分包，在保留答案顺序和多语言声音的同时避免 SSML 过大导致整张卡片失败。
-
-Speech Key 只保存在 RemNote 插件的本机 storage，不会提交到仓库，也不会写入同步设置。只有当前需要合成的文字会发送到你配置的 Azure Speech endpoint。
-
-#### Edge 本地语音（edge-tts 桥接）
-
-Edge 本地语音通过运行在你电脑上的一个小型本地服务，使用微软 Edge 的免费在线神经语音。因为声音来自本地服务而不是浏览器，所以 Chrome、Edge 和 RemNote 桌面版都能使用相同的自然音色（晓晓、云希、Aria、Nanami 等）。
-
-设置步骤：
-
-1. 从 python.org 安装 Python 3.9+。
-2. 运行一次 `scripts/start-edge-tts.ps1`，它会安装所需依赖并启动本地服务。
-3. 在 RemNote 设置 → 插件 → RemNote Smart TTS 中，把**声音来源**设为 **Edge 本地语音**。
-4. 打开**高级声音设置**，为每种语言选择声音并试听。
-
-本地服务只在你自己的电脑上运行，复习时需要保持运行；可以使用随附的开机自启脚本让它随 Windows 自动启动。
-
-### 安装
-
-审核通过后可从 RemNote Plugin Store 安装，也可以下载最新安装包：
-
-- [下载 PluginZip.zip](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest/download/PluginZip.zip)
-- [查看 Releases](https://github.com/ObeyYourHeart/remnote-smart-tts/releases)
-
-日常选项位于 **RemNote 设置 → 插件 → RemNote Smart TTS**。Azure 凭据、Edge 本地服务地址、声音选择和试听集中在 **Advanced Voice Setup / 高级声音设置**。
-
-### 与 RemNote 官方 TTS 共存
-
-RemNote Plugin SDK 目前没有提供读取或关闭官方 TTS 设置的可靠接口。如果听到两套声音，请关闭对应的 RemNote Queue TTS，或把本插件的自动朗读设为关闭。“替代 RemNote TTS 控件”只改变队列中的可见 UI，不会修改 RemNote 偏好。
-
-### 已知限制
-
-- 公开 Plugin SDK 不能可靠提供 Multiple-Choice 的正确选项，因此插件不会猜答案。
-- 完整表格朗读、图片遮挡描述和 LaTeX Cloze 理解仍需要 RemNote 提供更多结构化数据。
-- 某些 iframe 或移动端环境可能受浏览器自动播放策略限制，此时仍可手动播放。
-- Azure 动态目录目前只展示插件能够正确合成的三个 locale：`zh-CN`、`en-US`、`ja-JP`。
-- Edge 本地语音需要本地服务保持运行，建议使用随附的开机自启脚本。
-
-### 本地开发
+本地开发：
 
 ```powershell
 npm install
@@ -195,13 +171,20 @@ npm test
 npm run build
 ```
 
-生产安装包生成在项目根目录的 `PluginZip.zip`。localhost 调试版使用独立的 `-dev` Plugin ID，可以与正式安装版共存。
+构建结果为 `PluginZip.zip` 和 `EdgeLocalService.zip`。localhost 调试版使用独立的 `-dev` Plugin ID，可以与正式版并存。
+
+### 已知限制
+
+- 公开 Plugin SDK 无法稳定提供 Multiple-Choice 的正确选项，因此插件不会猜测答案。
+- 表格、图片遮挡和部分复杂 LaTeX Cloze 仍受 RemNote 结构化数据限制。
+- 某些 iframe 或移动端环境会受到浏览器自动播放策略影响，此时可以手动播放。
+- Azure 需要有效订阅和网络连接；Edge Local Voice 还需要本地桥接服务保持运行。
 
 ## Acknowledgements / 致谢
 
-Inspired by [mrcoding-dev/rem-to-speech](https://github.com/mrcoding-dev/rem-to-speech), then independently extended with card-structure parsing, multilingual speech, semantic prompts, and provider controls.
+Inspired by [mrcoding-dev/rem-to-speech](https://github.com/mrcoding-dev/rem-to-speech), with independent extensions for card-structure parsing, multilingual speech, semantic prompts, and multiple speech providers.
 
-本项目参考了 [mrcoding-dev/rem-to-speech](https://github.com/mrcoding-dev/rem-to-speech)，并针对卡片结构、多语言、语义问答与声音来源管理进行了独立扩展。
+本项目参考了 [mrcoding-dev/rem-to-speech](https://github.com/mrcoding-dev/rem-to-speech)，并独立扩展了卡片结构解析、多语言朗读、语义提示和多种声音来源支持。
 
 ## License
 
