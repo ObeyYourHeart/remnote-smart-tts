@@ -20,6 +20,15 @@ else {
         $pythonFile = $pythonLauncher.Source
         $pythonArguments = @('-3')
     }
+    else {
+        # Python installed from python.org is often not added to PATH on
+        # Windows. Discover the user's local installations before failing.
+        $pythonFile = Get-ChildItem `
+            -Path (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python*\python.exe') `
+            -File -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+    }
 }
 if (-not $pythonFile) {
     Write-Error "Python was not found. Install Python 3.9+ from https://www.python.org/downloads/ first."
