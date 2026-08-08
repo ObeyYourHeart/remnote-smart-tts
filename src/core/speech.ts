@@ -278,6 +278,7 @@ export class SpeechController {
   private azureSessionBusy = false;
   private activeAzurePlayer: AzureMp3StreamPlayer | null = null;
   private activeEdgePlayback: EdgeLocalPlaybackHandle | null = null;
+  private activeEdgeRequest: AbortController | null = null;
 
   cancel(): void {
     this.generation += 1;
@@ -289,6 +290,8 @@ export class SpeechController {
     if (this.azureSessionBusy) this.disposeAzureSession();
     this.activeEdgePlayback?.stop();
     this.activeEdgePlayback = null;
+    this.activeEdgeRequest?.abort();
+    this.activeEdgeRequest = null;
   }
 
   /** Fully releases the Azure connection when the queue is finished. */
@@ -298,6 +301,8 @@ export class SpeechController {
     this.disposeAzureSession();
     this.activeEdgePlayback?.stop();
     this.activeEdgePlayback = null;
+    this.activeEdgeRequest?.abort();
+    this.activeEdgeRequest = null;
   }
 
   async speak(
@@ -385,12 +390,26 @@ export class SpeechController {
       if (generation !== this.generation) return;
       // One request per semantic chunk. Flashcards are short, so the complete
       // MP3 arrives quickly and playback can be stopped at a chunk boundary.
-      const audioData = await synthesizeEdgeLocalAudio(
-        serverUrl,
-        chunk.text,
-        settings.edgeVoices[chunk.language],
-        settings.rate,
-      );
+      const request = new AbortController();
+      this.activeEdgeRequest = request;
+      let audioData: ArrayBuffer;
+      try {
+        audioData = await synthesizeEdgeLocalAudio(
+          serverUrl,
+          chunk.text,
+          settings.edgeVoices[chunk.language],
+          settings.rate,
+          30_000,
+          request.signal,
+        );
+      } catch (error) {
+        // Moving to another card is an expected cancellation, not a provider
+        // failure that should trigger Browser fallback or an error toast.
+        if (generation !== this.generation) return;
+        throw error;
+      } finally {
+        if (this.activeEdgeRequest === request) this.activeEdgeRequest = null;
+      }
       if (generation !== this.generation) return;
 
       const playback = playEdgeLocalAudio(

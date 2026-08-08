@@ -8,14 +8,23 @@ export interface EdgeTtsRequestPayload {
   rate: string;
 }
 
-/** Keeps the local server URL clean and http(s)-only. */
+/**
+ * Keeps the Edge bridge on the loopback interface.
+ * Card text is private study data, so arbitrary remote hosts are rejected.
+ */
 export function normalizeEdgeLocalUrl(raw: string): string {
   const trimmed = (raw || '').trim().replace(/\/+$/, '');
   if (!trimmed) return DEFAULT_EDGE_LOCAL_URL;
   const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
   try {
     const url = new URL(candidate);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    const hostname = url.hostname.toLowerCase();
+    const isLoopback =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '[::1]' ||
+      hostname === '::1';
+    if ((url.protocol !== 'http:' && url.protocol !== 'https:') || !isLoopback) {
       return DEFAULT_EDGE_LOCAL_URL;
     }
     return `${url.protocol}//${url.host}`;
@@ -69,7 +78,14 @@ export async function fetchEdgeLocalHealth(
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${serverUrl}/health`, { signal: controller.signal });
-    return response.ok;
+    if (!response.ok) return false;
+    const data: unknown = await response.json();
+    return Boolean(
+      data &&
+      typeof data === 'object' &&
+      (data as { ok?: unknown }).ok === true &&
+      (data as { service?: unknown }).service === 'edge-tts',
+    );
   } catch {
     return false;
   } finally {
@@ -126,9 +142,17 @@ export async function synthesizeEdgeLocalAudio(
   voice: string,
   rate: number,
   timeoutMs = 30_000,
+  externalSignal?: AbortSignal,
 ): Promise<ArrayBuffer> {
   const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const timer = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  const abortFromCaller = () => controller.abort();
+  externalSignal?.addEventListener('abort', abortFromCaller, { once: true });
+  if (externalSignal?.aborted) controller.abort();
   try {
     const response = await fetch(`${serverUrl}/tts`, {
       method: 'POST',
@@ -152,15 +176,25 @@ export async function synthesizeEdgeLocalAudio(
       }
       throw new EdgeLocalServerError(message, response.status);
     }
-    return await response.arrayBuffer();
+    const contentType = response.headers.get('Content-Type')?.toLowerCase() ?? '';
+    if (!contentType.startsWith('audio/')) {
+      throw new EdgeLocalServerError('Edge Local Voice returned a non-audio response.');
+    }
+    const audioData = await response.arrayBuffer();
+    if (audioData.byteLength === 0) {
+      throw new EdgeLocalServerError('Edge Local Voice returned an empty audio file.');
+    }
+    return audioData;
   } catch (error) {
     if (error instanceof EdgeLocalServerError) throw error;
     if (error instanceof DOMException && error.name === 'AbortError') {
+      if (externalSignal?.aborted && !timedOut) throw error;
       throw new EdgeLocalConnectionError('Edge 语音服务响应超时，请检查网络或服务状态。');
     }
     throw new EdgeLocalConnectionError(CONNECTION_MESSAGE);
   } finally {
     window.clearTimeout(timer);
+    externalSignal?.removeEventListener('abort', abortFromCaller);
   }
 }
 

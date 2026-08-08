@@ -66,17 +66,21 @@ Edge Local Voice uses Microsoft Edge's free online neural voices through a small
 Setup:
 
 1. Install Python 3.9+ from python.org.
-2. Run `scripts/start-edge-tts.ps1` once. It installs the required dependency and starts the local service.
-3. In RemNote Settings → Plugins → RemNote Smart TTS, set **Voice provider** to **Edge Local Voice**.
-4. Open **Advanced Voice Setup**, choose a voice per language, and preview it.
+2. Download and extract [EdgeLocalService.zip](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest/download/EdgeLocalService.zip), or use the `scripts` directory from a source checkout.
+3. Run `scripts/start-edge-tts.ps1` once. It installs the required dependency and starts the local service.
+4. In RemNote Settings → Plugins → RemNote Smart TTS, set **Voice provider** to **Edge Local Voice**.
+5. Open **Advanced Voice Setup**, choose a voice per language, and preview it.
 
-The service runs only on your own computer and must be running while you review cards; enable the included startup helper so it starts automatically with Windows.
+The bridge listens only on your own computer and accepts requests only from RemNote and localhost development pages. Speech synthesis is still online: the text being spoken is sent through the bridge to Microsoft's Edge speech service. No Azure key is required, but availability depends on the unofficial `edge-tts` interface and Microsoft's service.
+
+The bridge must be running while you review cards; enable the included startup helper so it starts automatically with Windows.
 
 ### Installation
 
 Install RemNote Smart TTS from the RemNote Plugin Store when available, or download the current release package:
 
 - [Download PluginZip.zip](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest/download/PluginZip.zip)
+- [Download EdgeLocalService.zip](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest/download/EdgeLocalService.zip) when using Edge Local Voice
 - [View releases](https://github.com/ObeyYourHeart/remnote-smart-tts/releases)
 
 Everyday options live in **RemNote Settings → Plugins → RemNote Smart TTS**. Azure credentials, Edge Local server settings, voice selection, and previews are grouped in **Advanced Voice Setup**.
@@ -91,7 +95,7 @@ The RemNote Plugin SDK does not expose a supported way to read or disable RemNot
 - Full table narration, image-occlusion descriptions, and LaTeX Cloze interpretation need additional structured data from RemNote.
 - Browser autoplay policies can still block audio in some iframe or mobile contexts; manual playback remains available.
 - Dynamic Azure selection currently lists the three locales the plugin can synthesize correctly: `zh-CN`, `en-US`, and `ja-JP`.
-- Edge Local Voice needs the local service running; use the included startup helper for automatic start.
+- Edge Local Voice needs the local service and an internet connection; use the included startup helper for automatic start. Moving to another card cancels unfinished local synthesis requests.
 
 ### Development
 
@@ -159,17 +163,21 @@ Edge 本地语音通过运行在你电脑上的一个小型本地服务，使用
 设置步骤：
 
 1. 从 python.org 安装 Python 3.9+。
-2. 运行一次 `scripts/start-edge-tts.ps1`，它会安装所需依赖并启动本地服务。
-3. 在 RemNote 设置 → 插件 → RemNote Smart TTS 中，把**声音来源**设为 **Edge 本地语音**。
-4. 打开**高级声音设置**，为每种语言选择声音并试听。
+2. 下载并解压 [EdgeLocalService.zip](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest/download/EdgeLocalService.zip)，也可以直接使用源码仓库里的 `scripts` 目录。
+3. 运行一次 `scripts/start-edge-tts.ps1`，它会安装所需依赖并启动本地服务。
+4. 在 RemNote 设置 → 插件 → RemNote Smart TTS 中，把**声音来源**设为 **Edge 本地语音**。
+5. 打开**高级声音设置**，为每种语言选择声音并试听。
 
-本地服务只在你自己的电脑上运行，复习时需要保持运行；可以使用随附的开机自启脚本让它随 Windows 自动启动。
+桥接服务只监听你自己的电脑，并且只接受 RemNote 与 localhost 开发页面的请求。语音合成本身仍然需要联网：正在朗读的文字会经由本地桥接发送到微软 Edge 语音服务。它不需要 Azure Key，但可用性依赖非官方的 `edge-tts` 接口和微软服务。
+
+复习时需要保持桥接服务运行；可以使用随附的开机自启脚本让它随 Windows 自动启动。
 
 ### 安装
 
 审核通过后可从 RemNote Plugin Store 安装，也可以下载最新安装包：
 
 - [下载 PluginZip.zip](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest/download/PluginZip.zip)
+- [下载 EdgeLocalService.zip](https://github.com/ObeyYourHeart/remnote-smart-tts/releases/latest/download/EdgeLocalService.zip)（使用 Edge 本地语音时需要）
 - [查看 Releases](https://github.com/ObeyYourHeart/remnote-smart-tts/releases)
 
 日常选项位于 **RemNote 设置 → 插件 → RemNote Smart TTS**。Azure 凭据、Edge 本地服务地址、声音选择和试听集中在 **Advanced Voice Setup / 高级声音设置**。
@@ -184,7 +192,7 @@ RemNote Plugin SDK 目前没有提供读取或关闭官方 TTS 设置的可靠�
 - 完整表格朗读、图片遮挡描述和 LaTeX Cloze 理解仍需要 RemNote 提供更多结构化数据。
 - 某些 iframe 或移动端环境可能受浏览器自动播放策略限制，此时仍可手动播放。
 - Azure 动态目录目前只展示插件能够正确合成的三个 locale：`zh-CN`、`en-US`、`ja-JP`。
-- Edge 本地语音需要本地服务保持运行，建议使用随附的开机自启脚本。
+- Edge 本地语音需要本地服务和网络连接，建议使用随附的开机自启脚本；切换卡片时，尚未完成的本地合成请求会被取消。
 
 ### 本地开发
 

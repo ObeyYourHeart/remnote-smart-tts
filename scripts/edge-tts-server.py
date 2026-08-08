@@ -18,6 +18,7 @@ import json
 import sys
 import time
 from typing import Any
+from urllib.parse import urlsplit
 
 import edge_tts
 from aiohttp import web
@@ -27,15 +28,16 @@ PORT = 8765
 MAX_TEXT_LENGTH = 5000
 
 # Chrome's Private Network Access requires these headers when an HTTPS page
-# (app.remnote.com) talks to a localhost server. Without them the fetch is
-# blocked even though the server is running.
-CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
+# talks to localhost. The origin itself is added only after validation so an
+# unrelated website cannot silently use the user's local speech bridge.
+CORS_BASE_HEADERS = {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Private-Network": "true",
     "Access-Control-Max-Age": "86400",
 }
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+REMNOTE_DOMAINS = {"remnote.com", "remnoteplugins.com"}
 
 # list_voices() is a network call; cache it for one hour so every synthesis
 # request does not need to re-download the whole catalog.
@@ -46,8 +48,36 @@ def rate_percent(rate: Any) -> str:
     """Convert the plugin's 0.5-2.0 rate to edge-tts percent syntax."""
     if not isinstance(rate, (int, float)) or rate <= 0:
         return "+0%"
-    delta = int(round((rate - 1) * 100))
+    safe_rate = max(0.5, min(2.0, float(rate)))
+    delta = int(round((safe_rate - 1) * 100))
     return f"{'+' if delta >= 0 else ''}{delta}%"
+
+
+def is_allowed_origin(origin: str) -> bool:
+    """Allow RemNote plugin frames and local development pages only."""
+    if not origin:
+        return True
+    try:
+        parsed = urlsplit(origin)
+    except ValueError:
+        return False
+    hostname = (parsed.hostname or "").lower()
+    if parsed.scheme in {"http", "https"} and hostname in LOCAL_HOSTS:
+        return True
+    if parsed.scheme != "https":
+        return False
+    return any(
+        hostname == domain or hostname.endswith(f".{domain}")
+        for domain in REMNOTE_DOMAINS
+    )
+
+
+def cors_headers(origin: str) -> dict[str, str]:
+    headers = dict(CORS_BASE_HEADERS)
+    if origin:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Vary"] = "Origin"
+    return headers
 
 
 async def known_voices() -> list[dict[str, Any]]:
@@ -62,11 +92,14 @@ async def known_voices() -> list[dict[str, Any]]:
 async def cors_middleware(
     request: web.Request, handler: Any
 ) -> web.StreamResponse:
-    """Answer CORS preflights and attach CORS headers to every response."""
+    """Answer approved CORS preflights and reject unrelated web origins."""
+    origin = request.headers.get("Origin", "").strip()
+    if not is_allowed_origin(origin):
+        return json_error(403, "This local service only accepts RemNote origins.")
     if request.method == "OPTIONS":
-        return web.Response(status=204, headers=CORS_HEADERS)
+        return web.Response(status=204, headers=cors_headers(origin))
     response = await handler(request)
-    for key, value in CORS_HEADERS.items():
+    for key, value in cors_headers(origin).items():
         response.headers[key] = value
     return response
 
@@ -76,13 +109,15 @@ def json_error(status: int, message: str) -> web.Response:
 
 
 async def handle_health(request: web.Request) -> web.Response:
-    try:
-        voices = await known_voices()
-    except Exception as exc:
-        print(f"[edge-tts] health check could not load voices: {exc}", file=sys.stderr)
-        voices = []
+    # A health check should prove that the local process is responsive. Voice
+    # catalog availability is tested separately by GET /voices.
+    cached_voices = _VOICE_CACHE["voices"]
     return web.json_response(
-        {"ok": True, "service": "edge-tts", "voiceCount": len(voices)}
+        {
+            "ok": True,
+            "service": "edge-tts",
+            "voiceCount": len(cached_voices) if cached_voices is not None else None,
+        }
     )
 
 
@@ -111,7 +146,7 @@ async def handle_voices(request: web.Request) -> web.Response:
     )
 
 
-async def handle_tts(request: web.Request) -> web.StreamResponse:
+async def handle_tts(request: web.Request) -> web.Response:
     try:
         body = await request.json()
     except Exception:
@@ -144,30 +179,21 @@ async def handle_tts(request: web.Request) -> web.StreamResponse:
         f"[edge-tts] synthesizing {len(text)} chars with {voice} at {rate} "
         f"({request.remote})"
     )
-    # NOTE: Communicate.stream() is an async generator, not an async context
-    # manager. Wrapping it in "async with" fails silently and returns an empty
-    # audio stream, so iterate it directly.
+    # The browser client buffers the complete MP3 before playback, so buffering
+    # here does not add client-visible latency. It does let us return a real
+    # HTTP error instead of an empty 200 response when synthesis fails.
     try:
         communicate = edge_tts.Communicate(text, voice, rate=rate)
-        response = web.StreamResponse(
-            headers={"Content-Type": "audio/mpeg", **CORS_HEADERS}
-        )
-        await response.prepare(request)
+        audio = bytearray()
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
-                await response.write(chunk["data"])
-        await response.write_eof()
-        return response
+                audio.extend(chunk["data"])
+        if not audio:
+            return json_error(502, "Microsoft returned an empty audio stream.")
+        return web.Response(body=bytes(audio), content_type="audio/mpeg")
     except Exception as exc:
-        # Headers are already sent at this point, so a JSON error is no longer
-        # possible. Log it and close the stream; the plugin shows its own
-        # playback error message when the MP3 ends early.
         print(f"[edge-tts] synthesis failed: {exc}", file=sys.stderr)
-        try:
-            await response.write_eof()
-        except Exception:
-            pass
-        return response
+        return json_error(502, f"Speech synthesis failed: {exc}")
 
 
 async def handle_root(request: web.Request) -> web.Response:
@@ -186,7 +212,7 @@ async def main() -> None:
     parser.add_argument("--port", type=int, default=PORT)
     args = parser.parse_args()
 
-    app = web.Application(middlewares=[cors_middleware])
+    app = web.Application(middlewares=[cors_middleware], client_max_size=128 * 1024)
     app.add_routes(
         [
             web.get("/", handle_root),
