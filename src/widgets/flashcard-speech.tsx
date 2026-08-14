@@ -15,6 +15,7 @@ import {
 } from '../core/orderedQueue';
 import { readAzureKey, readSettings } from '../core/settings';
 import { SpeechController } from '../core/speech';
+import { formatProviderFallbackNotice } from '../core/speechProvider';
 import {
   createSpeechServiceProbe,
   createSpeechRequest,
@@ -255,9 +256,7 @@ function FlashcardSpeechWidget() {
       setLastPlaybackResult(result);
       if (result.fallbackReason) {
         await plugin.app.toast(
-          settings.uiLanguage === 'zh'
-            ? `Azure 已改用浏览器声音：${result.fallbackReason}`
-            : `Azure used a browser voice instead: ${result.fallbackReason}`,
+          formatProviderFallbackNotice(settings.provider, settings.uiLanguage, result.fallbackReason),
         );
       }
       setStatus('idle');

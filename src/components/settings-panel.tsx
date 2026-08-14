@@ -10,6 +10,7 @@ import {
 import { readAzureKey, readSettings, writeAzureKey, writeSettings } from '../core/settings';
 import { runPreviewWithTimeout } from '../core/preview';
 import { getAvailableBrowserVoices, SpeechController } from '../core/speech';
+import { formatProviderFallbackNotice } from '../core/speechProvider';
 import { CURATED_EDGE_VOICES, type EdgeLocalVoice } from '../core/edgeVoiceCatalog';
 import {
   fetchEdgeLocalHealth,
@@ -57,7 +58,6 @@ const COPY = {
     saveFailed: 'Could not save voice setup. Please try again.',
     previewFailed: 'Voice preview failed. Check the selected voice, Azure key, and region.',
     previewTimedOut: 'Voice preview timed out and was stopped. Please try another voice.',
-    fallback: 'Azure was unavailable, so this preview used a browser voice.',
     close: 'Close',
   },
   zh: {
@@ -91,7 +91,6 @@ const COPY = {
     saveFailed: '声音设置保存失败，请重试。',
     previewFailed: '试听失败，请检查声音、Azure Key 和 Region。',
     previewTimedOut: '试听超时，已自动停止。请尝试其他声音。',
-    fallback: 'Azure 暂不可用，本次试听已改用浏览器声音。',
     close: '关闭',
   },
 } as const;
@@ -352,7 +351,9 @@ export function SettingsPanel({ plugin }: { plugin: RNPlugin }) {
         () => testController.cancel(),
       );
       if (result.fallbackReason) {
-        await plugin.app.toast(`${copy.fallback} ${result.fallbackReason}`);
+        await plugin.app.toast(
+          formatProviderFallbackNotice(settings.provider, displayLanguage, result.fallbackReason),
+        );
       }
     } catch (error) {
       if (requestId !== previewRequestRef.current) return;

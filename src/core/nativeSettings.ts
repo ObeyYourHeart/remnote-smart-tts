@@ -106,7 +106,7 @@ export async function registerNativeSettings(plugin: RNPlugin): Promise<void> {
   await plugin.settings.registerBooleanSetting({
     id: NATIVE_SETTING_IDS.fallbackToBrowser,
     title: 'Browser fallback / 浏览器声音回退',
-    description: 'Use a browser voice when Azure is unavailable. / Azure 不可用时自动改用浏览器声音。',
+    description: 'Use a browser voice when an external provider is unavailable. / 外部语音接口不可用时自动改用浏览器声音。',
     defaultValue: true,
   });
   await plugin.settings.registerStringSetting({
